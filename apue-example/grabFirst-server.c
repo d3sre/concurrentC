@@ -29,8 +29,7 @@ serve(int sockfd)
     set_cloexec(sockfd);
     for (;;) {
         if ((clfd = accept(sockfd, NULL, NULL)) < 0) {
-            syslog(LOG_ERR, "ruptimed: accept error: %s",
-                    strerror(errno));
+            syslog(LOG_ERR, "ruptimed: accept error: %s", strerror(errno));
             exit(1);
         }
         set_cloexec(clfd);
@@ -49,6 +48,7 @@ serve(int sockfd)
 int
 main(int argc, char *argv[])
 {
+    printf("1\n");
     struct addrinfo	*ailist, *aip;
     struct addrinfo	hint;
     int				sockfd, err, n;
@@ -62,21 +62,24 @@ main(int argc, char *argv[])
         err_sys("malloc error");
     if (gethostname(host, n) < 0)
         err_sys("gethostname error");
+    printf("2-\n");
     daemonize("ruptimed");
+    printf("2-1\n");
     memset(&hint, 0, sizeof(hint));
+    printf("2-2\n");
     hint.ai_flags = AI_CANONNAME;
     hint.ai_socktype = SOCK_STREAM;
     hint.ai_canonname = NULL;
     hint.ai_addr = NULL;
     hint.ai_next = NULL;
+    printf("3\n");
     if ((err = getaddrinfo(host, "ruptime", &hint, &ailist)) != 0) {
-        syslog(LOG_ERR, "ruptimed: getaddrinfo error: %s",
-                gai_strerror(err));
+        syslog(LOG_ERR, "ruptimed: getaddrinfo error: %s", gai_strerror(err));
         exit(1);
     }
+    printf("ailist: %s\n", ailist);
     for (aip = ailist; aip != NULL; aip = aip->ai_next) {
-        if ((sockfd = initserver(SOCK_STREAM, aip->ai_addr,
-                aip->ai_addrlen, QLEN)) >= 0) {
+        if ((sockfd = initserver(SOCK_STREAM, aip->ai_addr, aip->ai_addrlen, QLEN)) >= 0) {
             serve(sockfd);
             exit(0);
         }
