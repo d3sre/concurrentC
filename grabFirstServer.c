@@ -31,22 +31,25 @@ int main(int argc, char *argv[])
         fprintf(stderr,"ERROR, no port provided\n");
         exit(1);
     }
+    // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
         error("ERROR opening socket");
+    //set sizeof(serv_addr) of bytes to zero
     bzero((char *) &serv_addr, sizeof(serv_addr));
+    //convert cmd input to integer and assign to portno
     portno = atoi(argv[1]);
+    //configure serv_addr structure object with server details
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(portno);
-    if (bind(sockfd, (struct sockaddr *) &serv_addr,
-             sizeof(serv_addr)) < 0)
+    //bind  socket file descriptor to serv_addr, with length sizeof(serv_addr) and if error print out
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
         error("ERROR on binding");
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd,
-                       (struct sockaddr *) &cli_addr,
-                       &clilen);
+    //open new socket and return file descriptor
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     if (newsockfd < 0)
         error("ERROR on accept");
     bzero(buffer,256);
