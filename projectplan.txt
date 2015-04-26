@@ -6,3 +6,7 @@
 6. Schritt: Server Kommunikation zwischen Forks                             8h
 7. Schritt: Ausgaben Log Anpassen/Feinschliff                               2h
 8. Schritt: Makefile                                                        4h      -> 07.06.15
+
+
+
+CMake Tutorial: http://www.vtk.org/Wiki/CMake/Tutorials/How_to_create_a_ProjectConfig.cmake_file

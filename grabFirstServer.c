@@ -21,11 +21,19 @@
 
 #define MAXPLAYER 2 //value for n, start when n/2 reached
 
+int gameon = 0;
+char *replyMessage = "ACK";
 
 void error(const char *msg)
 {
     perror(msg);
     exit(1);
+}
+
+void cleanUpServer(int newsockfd, int sockfd){
+    //### section: cleanup ###
+    close(newsockfd);
+    close(sockfd);
 }
 
 void parse(const char* cmd){
@@ -42,8 +50,14 @@ void parse(const char* cmd){
         TAKE(atoi(proto2nd), atoi(proto3rd), proto4th);
     else if(strcmp(proto1st,"STATUS") == 0)
         STATUS(atoi(proto2nd), atoi(proto3rd));
-        else
-            printf("Command wasn't recognised\n");
+    else if(strcmp(proto1st,"END") == 0) {
+        END(proto2nd);
+        gameon = 0;
+        replyMessage = "END";
+    }
+
+    else
+        printf("Command wasn't recognised\n");
 
 
 
@@ -53,6 +67,8 @@ void parse(const char* cmd){
     printf("entered parser-2 %s\n", proto4th);
 
 }
+
+
 
 int main(int argc, char *argv[])
 {
@@ -85,26 +101,30 @@ int main(int argc, char *argv[])
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
 
+    gameon = 1;
     //### section: receiving input from client ###
     //open new socket and return file descriptor
     // this is to enable communication with client, separate socket with sockfd and client address, needs to happen for every new client connection
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     if (newsockfd < 0)
         error("ERROR on accept");
-    // clear buffer
-    bzero(buffer,256);
-    //read newsockfd to buffer
-    n = read(newsockfd,buffer,255);
-    if (n < 0) error("ERROR reading from socket");
-    parse(buffer);
-    //print received message from buffer
-    printf("Here is the message: %s\n",buffer);
-    //write response to socket
-    n = write(newsockfd,"I got your message",18);
-    if (n < 0) error("ERROR writing to socket");
 
-    //### section: cleanup ###
-    close(newsockfd);
-    close(sockfd);
+    while (gameon == 1) {
+        // clear buffer
+        bzero(buffer, 256);
+        //read newsockfd to buffer
+        n = read(newsockfd, buffer, 255);
+        if (n < 0) error("ERROR reading from socket");
+        parse(buffer);
+        //print received message from buffer
+        printf("Here is the message: %s\n", buffer);
+        //write response to socket
+        n = write(newsockfd, replyMessage, 18);
+        if (n < 0) error("ERROR writing to socket");
+    }
+
+    cleanUpServer(newsockfd, sockfd);
+
+
     return 0;
 }
