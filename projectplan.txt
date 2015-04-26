@@ -1,0 +1,8 @@
+1. Schritt: Client-Server Kommunikation                                     8h
+2. Schritt: Protokoll Implementation (inkl. parse server)                   4-8h
+3. Schritt: 2 Client Strategien                                             8h
+4. Schritt: Spielfeld/Shared Memory (1 fork)                                8h     -> 26.04.15
+5. Schritt: Erweiterung mehrere Forks (inkl. test/troublesh.)               20h   -> 17.05.15
+6. Schritt: Server Kommunikation zwischen Forks                             8h
+7. Schritt: Ausgaben Log Anpassen/Feinschliff                               2h
+8. Schritt: Makefile                                                        4h      -> 07.06.15
