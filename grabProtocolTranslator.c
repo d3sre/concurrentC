@@ -121,12 +121,12 @@ void decode(const char* cmd, struct action* a) {
 void encode(struct action* a, const char* returnMessage) {
 
     char tempReturnMessage[256];
-    char *integeParamter1 [4];
-    char *integeParamter2 [4];
-    char *stringParameter1 [240];
+    char *integeParamter1 = (char *) (&a->iParam1);
+    char *integeParamter2 = (char *) (&a->iParam2);
+    char *stringParameter1 = (char *) (&a->sParam1);
 
     if (a->cmd == SIZE){
-        strcpy(integeParamter1,a->iParam1);
+
         strcpy(tempReturnMessage, "SIZE ");
         strcat(tempReturnMessage, integeParamter1);
         strcat(tempReturnMessage, "\n");
@@ -146,13 +146,13 @@ void encode(struct action* a, const char* returnMessage) {
     }
     else if (a->cmd == INUSE) {
         strcpy(tempReturnMessage, "INUSE");
-        strcat(tempReturnMessage, a->iParam1);
+        strcat(tempReturnMessage, integeParamter1);
         strcat(tempReturnMessage, "\n");
         returnMessage = tempReturnMessage;
     }
 
     else if (a->cmd == PLAYERNAME) {
-        strcpy(tempReturnMessage, a->sParam1);
+        strcpy(tempReturnMessage, stringParameter1);
         strcat(tempReturnMessage, "\n");
         returnMessage = tempReturnMessage;
     }
@@ -165,7 +165,7 @@ void encode(struct action* a, const char* returnMessage) {
 
     else if (a->cmd == END) {
         strcpy(tempReturnMessage, "END ");
-        strcat(tempReturnMessage, a->sParam1);
+        strcat(tempReturnMessage, stringParameter1);
         strcat(tempReturnMessage, "\n");
         returnMessage = tempReturnMessage;
     }
@@ -173,20 +173,20 @@ void encode(struct action* a, const char* returnMessage) {
     else if (a->cmd == TAKE){
         //strtol(a->iParam1,NULL,256);
         strcpy(tempReturnMessage, "TAKE ");
-        strcat(tempReturnMessage, a->iParam1);
+        strcat(tempReturnMessage, integeParamter1);
         strcat(tempReturnMessage, " ");
-        strcat(tempReturnMessage, a->iParam2);
+        strcat(tempReturnMessage, integeParamter2);
         strcat(tempReturnMessage, " ");
-        strcat(tempReturnMessage, a->sParam1);
+        strcat(tempReturnMessage, stringParameter1);
         strcat(tempReturnMessage, "\n");
         returnMessage = tempReturnMessage;
     }
 
     else if (a->cmd == STATUS){
         strcpy(tempReturnMessage, "STATUS ");
-        strcat(tempReturnMessage, a->iParam1);
+        strcat(tempReturnMessage, integeParamter1);
         strcat(tempReturnMessage, " ");
-        strcat(tempReturnMessage, a->iParam2);
+        strcat(tempReturnMessage, integeParamter2);
         strcat(tempReturnMessage, "\n");
         returnMessage = tempReturnMessage;
     }

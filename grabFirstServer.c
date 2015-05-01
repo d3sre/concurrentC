@@ -25,12 +25,15 @@
 #define FALSE 0
 
 int gameon = 0;
-char *replyMessage[256];
+char replyMessage[256];
 
 //int n = 0;
 int** playfield;
 
-char* players;
+char** player;
+int numberPlayers;
+
+
 //char players[] = { 'one', 'two', 'test'};
 int FIELDSIZE = -1;
 
@@ -45,7 +48,64 @@ void cleanUpServer(int newsockfd, int sockfd){
     //### section: cleanup ###
     close(newsockfd);
     close(sockfd);
+
+    if (player != NULL) {
+        int i;
+        for(i=0; i< numberPlayers -1; i++) {
+            free(player[i]);
+        }
+        free(player);
+    }
+    if (playfield != NULL) {
+        int i;
+        for(i=0; i< FIELDSIZE -1; i++) {
+            free(playfield[i]);
+        }
+        free(playfield);
+    }
+
 }
+
+void addPlayer(const char* playername) {
+    if (player == NULL) {
+        numberPlayers = 1;
+        player = malloc(numberPlayers*sizeof(char*));
+        player[numberPlayers - 1] = malloc(256*sizeof(char));
+        strcpy(player[numberPlayers - 1], playername);
+    }
+    else {
+        char** tempPlayer = player;
+
+        numberPlayers++;
+        player = malloc(numberPlayers*sizeof(char*));
+        int i;
+        //copy old players from old array to new one
+        for(i = 0; i < numberPlayers - 1; i++) {
+            player[i] = malloc(256 * sizeof(char));
+            strcpy(player[i], tempPlayer[i]);
+        }
+        player[numberPlayers - 1] = malloc(256*sizeof(char));
+        strcpy(player[numberPlayers - 1], playername);
+
+        for(i=0; i< numberPlayers -1; i++) {
+            free(tempPlayer[i]);
+        }
+        free(tempPlayer);
+    }
+
+
+}
+
+_Bool existPlayer(const char* playername) {
+    int i;
+    for(i=0; i< numberPlayers; i++) {
+        if (strcmp(playername,player[i]) == 0) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 
 
 _Bool doHELLO(struct action* returnAction) {
@@ -57,18 +117,11 @@ _Bool doHELLO(struct action* returnAction) {
     //TODO check ready parameters
     int successfulSignup = 1;
 
-    int x;
-    char *newPlayer = malloc(sizeof(returnAction->sParam1));
-    players = malloc(FIELDSIZE*256);
-    for (x=0; x < FIELDSIZE; x++){
-        players[x] = returnAction->sParam1;
-    }
-
 
     if(successfulSignup){
 
-    returnAction->cmd = SIZE;
-    returnAction->iParam2 = FIELDSIZE;
+        returnAction->cmd = SIZE;
+        returnAction->iParam2 = FIELDSIZE;
     }
     else {
         returnAction->cmd = NACK;
@@ -80,12 +133,14 @@ _Bool doHELLO(struct action* returnAction) {
 _Bool doTAKE(int x, int y, char *playerName, struct action* returnAction) {
     printf("TAKE received on x:%d y: %d by: %s", x, y, playerName);
 
-    if (x == NULL || y == NULL || playerName == NULL || returnAction == NULL)
+    if (playerName == NULL || returnAction == NULL)
         return FALSE;
 
     //TODO program checks if field is in use
     int successfulTake = 1;
 
+    if (existPlayer(playerName))
+        addPlayer(playerName);
 
 
     if (successfulTake) {
@@ -103,14 +158,20 @@ _Bool doTAKE(int x, int y, char *playerName, struct action* returnAction) {
 _Bool doSTATUS(int x, int y, struct action* returnAction) {
     printf("Status x:d% y:%d",x,y);
 
-    if (x == NULL || y == NULL)
+    if (x< 0 || x>=FIELDSIZE || y<0 || y>= FIELDSIZE || returnAction == NULL)
         return FALSE;
 
     //TODO check field and return fieldOwner
 
-    returnAction->cmd = PLAYERNAME;
-    strcpy(returnAction->sParam1,players[0]);
+    int clientid = playfield[x][y];
 
+    returnAction->cmd = PLAYERNAME;
+    if (clientid == 0){
+        strcpy(returnAction->sParam1,"FREE");
+    }
+    else {
+        strcpy(returnAction->sParam1, player[clientid]);
+    }
     return TRUE;
 }
 
@@ -144,7 +205,7 @@ int main(int argc, char *argv[])
         fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize>\n");
         exit(1);
     }
-    FIELDSIZE = argv[2];
+    FIELDSIZE = atoi(argv[2]);
     int x;
 
     //create playfield with n-size

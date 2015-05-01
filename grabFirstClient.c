@@ -48,7 +48,8 @@ _Bool doSIZE(int playfieldN){
     int x;
     printf("SIZE received");
 
-    if (playfieldN == NULL){
+    // 4 as this is the minimum size
+    if (playfieldN < 4){
         return FALSE;
     }
 
