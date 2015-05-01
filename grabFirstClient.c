@@ -14,15 +14,24 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include "grabProtocoll.h"
+#include "grabProtocolTranslator.h"
 
 
 /*
  *  Game default parameters, might be exported or serialized
  */
+
+#define TRUE 1
+#define FALSE 0
 const char *CLIENTNAME = "alice";
 
 int gameon = 0;
+int fieldSize = 2;
+int n = 0;
+
+int** playfield;
+
+
 
 void error(const char *msg)
 {
@@ -30,43 +39,106 @@ void error(const char *msg)
     exit(0);
 }
 
-void parse(const char* cmd){
+void cleanUpClient(int sockfd) {
+    gameon = 0;
+    close(sockfd);
+}
 
-    char mainCommand[255], proto1st[255], proto2nd[255], proto3rd[255], proto4th[255];
+_Bool doSIZE(int playfieldN){
+    int x;
+    printf("SIZE received");
 
-    sscanf(cmd, "%s %s %s %s", proto1st, proto2nd, proto3rd, proto4th);
+    if (playfieldN == NULL){
+        return FALSE;
+    }
 
-    if(strcmp(proto1st,"SIZE") == 0)
-        SIZE(atoi(proto2nd));
-    else if(strcmp(proto1st,"NACK") == 0)
-        NACK();
-    else if(strcmp(proto1st,"START") == 0)
-        START();
-    else if(strcmp(proto1st,"TAKEN") == 0)
-        TAKEN();
-    else if(strcmp(proto1st, "INUSE") == 0)
-        INUSE();
-    else if(strcmp(proto1st, "END") == 0)
-        gameon = 0;
-    else
-        printf("User %s is owner\n", proto1st);
+    //create playfield with n-size
+    playfield = malloc(playfieldN*sizeof(int*));
+    for (x = 0; x < playfieldN; x++){
+        playfield[x] = malloc(playfieldN*sizeof(int));
+    }
 
 
+    n = playfieldN;
 
-//    printf("entered parser-2 %s\n", proto1st);
-//    printf("entered parser-2 %s\n", proto2nd);
-//    printf("entered parser-2 %s\n", proto3rd);
-//    printf("entered parser-2 %s\n", proto4th);
+    return TRUE;
+}
+
+_Bool doSTART(struct action* returnAction){
+    printf("START received");
+
+    if (returnAction == NULL) {
+        return FALSE;
+    }
+
+    //simple Strategy
+    returnAction->cmd = TAKE;
+    returnAction->iParam1 = 0;
+    returnAction->iParam2 = 0;
+    strcpy(returnAction->sParam1,CLIENTNAME);
+
+    //game on server has started and entered state 2
+    gameon = 2;
+    return TRUE;
+}
+
+_Bool updatePlayfield(struct action* currentAction, struct action* returnAction) {
+    //strategy 1
+    int nextTriedFieldX;
+    int nextTriedFieldY;
+
+    if (currentAction == NULL || returnAction == NULL){
+        return FALSE;
+    }
+
+    int lastTriedFieldX = currentAction->iParam1;
+    int lastTriedFieldY = currentAction->iParam2;
+
+    if (returnAction->cmd == TAKEN){
+        playfield[lastTriedFieldX][lastTriedFieldY] = 1;
+    }
+    else if (returnAction->cmd == INUSE) {
+        // other user currently accessing
+        playfield[lastTriedFieldX][lastTriedFieldY] = 2;
+    }
+
+
+    if (lastTriedFieldX < n) {
+        nextTriedFieldX = lastTriedFieldX+1;
+    }
+    else {
+        nextTriedFieldX = 0;
+    }
+
+    if (lastTriedFieldY < n) {
+        nextTriedFieldY = lastTriedFieldY+1;
+    }
+    else {
+        nextTriedFieldY = 0;
+    }
+
+    returnAction->cmd = TAKE;
+    returnAction->iParam1 = nextTriedFieldX;
+    returnAction->iParam2 = nextTriedFieldY;
+    strcpy(returnAction->sParam1,CLIENTNAME);
+
+
+    return TRUE;
 
 }
 
 int main(int argc, char *argv[])
 {
-    int sockfd, portno, n;
+    int sockfd, portno, length;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
+    struct action currentAction;
+    struct action returnAction;
+
+
     char buffer[256];
+    char returnMessage[256];
     if (argc < 3) {
         fprintf(stderr,"usage %s hostname port\n", argv[0]);
         exit(0);
@@ -95,27 +167,55 @@ int main(int argc, char *argv[])
         error("ERROR connecting");
 
     gameon = 1;
-    while(gameon == 1) {
+    while(gameon >= 1) {
         printf("Please enter the message: ");
         //clean buffer
         bzero(buffer, 256);
         //gets string from stream stdin, terminated with newline \n
         fgets(buffer, 255, stdin);
-        //writes lenght of buffer from buffer to sockfd, n = numbers of written or -1 for error
-        n = write(sockfd, buffer, strlen(buffer));
-        if (n < 0)
+        //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
+        length = write(sockfd, buffer, strlen(buffer));
+        if (length < 0)
             error("ERROR writing to socket");
         //clean buffer
         bzero(buffer, 256);
         // read 255 bytes from sockfd into buffer
         n = read(sockfd, buffer, 255);
-        if (n < 0)
+        if (length < 0)
             error("ERROR reading from socket");
         //print buffer, terminated by newline \n
+
+        decode(buffer,&currentAction);
         printf("Buffer: %s\n", buffer);
-        parse(buffer);
+
+        switch (currentAction.cmd) {
+            case SIZE:
+                doSIZE(currentAction.iParam1);
+                break;
+            case NACK:
+                cleanUpClient(sockfd);
+                break;
+            case START:
+                doSTART(&returnAction);
+                break;
+            case INUSE:
+            case TAKEN:
+                updatePlayfield( &currentAction, &returnAction);
+                break;
+            case END:
+                printf("Winner was: %s, game has ended\n", currentAction.sParam1);
+                cleanUpClient(sockfd);
+                break;
+            default:
+                error("ERROR on received action");
+                break;
+        }
+
+        encode(&returnAction, returnMessage);
+
         printf("Gameon: %d", gameon);
     }
-    close(sockfd);
+
+    cleanUpClient(sockfd);
     return 0;
 }

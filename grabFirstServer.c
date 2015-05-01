@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "grabProtocoll.h"
+#include "grabProtocolTranslator.h"
 
 /*
  *  Game default parameters, might be exported or serialized
@@ -21,8 +21,19 @@
 
 #define MAXPLAYER 2 //value for n, start when n/2 reached
 
+#define TRUE 1
+#define FALSE 0
+
 int gameon = 0;
-char *replyMessage = "ACK";
+char *replyMessage[256];
+
+//int n = 0;
+int** playfield;
+
+char* players;
+//char players[] = { 'one', 'two', 'test'};
+int FIELDSIZE = -1;
+
 
 void error(const char *msg)
 {
@@ -36,36 +47,84 @@ void cleanUpServer(int newsockfd, int sockfd){
     close(sockfd);
 }
 
-void parse(const char* cmd){
-    //printf("entered parser");
 
-    char mainCommand[255], proto1st[255], proto2nd[255], proto3rd[255], proto4th[255];
+_Bool doHELLO(struct action* returnAction) {
+    printf("HELLO received");
 
+    if (returnAction == NULL)
+        return FALSE;
 
-    sscanf(cmd, "%s %s %s %s", proto1st, proto2nd, proto3rd, proto4th);
+    //TODO check ready parameters
+    int successfulSignup = 1;
 
-    if(strcmp(proto1st,"HELLO") == 0)
-        HELLO();
-    else if(strcmp(proto1st,"TAKE") == 0)
-        TAKE(atoi(proto2nd), atoi(proto3rd), proto4th);
-    else if(strcmp(proto1st,"STATUS") == 0)
-        STATUS(atoi(proto2nd), atoi(proto3rd));
-    else if(strcmp(proto1st,"END") == 0) {
-        END(proto2nd);
-        gameon = 0;
-        replyMessage = "END";
+    int x;
+    char *newPlayer = malloc(sizeof(returnAction->sParam1));
+    players = malloc(FIELDSIZE*256);
+    for (x=0; x < FIELDSIZE; x++){
+        players[x] = returnAction->sParam1;
     }
 
-    else
-        printf("Command wasn't recognised\n");
+
+    if(successfulSignup){
+
+    returnAction->cmd = SIZE;
+    returnAction->iParam2 = FIELDSIZE;
+    }
+    else {
+        returnAction->cmd = NACK;
+    }
+
+    return TRUE;
+}
+
+_Bool doTAKE(int x, int y, char *playerName, struct action* returnAction) {
+    printf("TAKE received on x:%d y: %d by: %s", x, y, playerName);
+
+    if (x == NULL || y == NULL || playerName == NULL || returnAction == NULL)
+        return FALSE;
+
+    //TODO program checks if field is in use
+    int successfulTake = 1;
 
 
 
-    printf("entered parser-2 %s\n", proto1st);
-    printf("entered parser-2 %s\n", proto2nd);
-    printf("entered parser-2 %s\n", proto3rd);
-    printf("entered parser-2 %s\n", proto4th);
+    if (successfulTake) {
+        returnAction->cmd = TAKEN;
 
+    }
+    else {
+        returnAction->cmd = INUSE;
+    }
+
+    return TRUE;
+
+}
+
+_Bool doSTATUS(int x, int y, struct action* returnAction) {
+    printf("Status x:d% y:%d",x,y);
+
+    if (x == NULL || y == NULL)
+        return FALSE;
+
+    //TODO check field and return fieldOwner
+
+    returnAction->cmd = PLAYERNAME;
+    strcpy(returnAction->sParam1,players[0]);
+
+    return TRUE;
+}
+
+_Bool doEND(char *playerName, struct action* returnAction) {
+    printf("END player: %s", playerName );
+
+    if (playerName == NULL|| returnAction == NULL)
+        return FALSE;
+
+    gameon = 0;
+    returnAction->cmd = END;
+    strcpy(returnAction->sParam1, playerName);
+
+    return TRUE;
 }
 
 
@@ -76,13 +135,24 @@ int main(int argc, char *argv[])
     int sockfd, newsockfd, portno;
     socklen_t clilen;
     char buffer[256];
-
     struct sockaddr_in serv_addr, cli_addr;
-    int n;
-    if (argc < 2) {
-        fprintf(stderr,"ERROR, no port provided\n");
+    int length;
+    struct action currentAction;
+    struct action returnAction;
+
+    if (argc < 3) {
+        fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize>\n");
         exit(1);
     }
+    FIELDSIZE = argv[2];
+    int x;
+
+    //create playfield with n-size
+    playfield = malloc(FIELDSIZE*sizeof(int*));
+    for (x = 0; x < FIELDSIZE; x++){
+        playfield[x] = malloc(FIELDSIZE*sizeof(int));
+    }
+
     // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -113,14 +183,39 @@ int main(int argc, char *argv[])
         // clear buffer
         bzero(buffer, 256);
         //read newsockfd to buffer
-        n = read(newsockfd, buffer, 255);
-        if (n < 0) error("ERROR reading from socket");
-        parse(buffer);
+        length = read(newsockfd, buffer, 255);
+        if (length < 0) error("ERROR reading from socket");
+
+        // change buffer (string) to struct action
+        decode(buffer, &currentAction);
+
+        switch (currentAction.cmd) {
+            case HELLO:
+                doHELLO(&returnAction);
+                break;
+            case TAKE:
+                doTAKE(currentAction.iParam1, currentAction.iParam2, currentAction.sParam1, &returnAction);
+                break;
+            case STATUS:
+                doSTATUS(currentAction.iParam1, currentAction.iParam2, &returnAction);
+                break;
+            case END:
+                doEND(currentAction.sParam1, &returnAction);
+                break;
+            default:
+                error("ERROR on received action");
+                break;
+        }
+
         //print received message from buffer
         printf("Here is the message: %s\n", buffer);
+
+        // change struct to string
+        encode(&returnAction, replyMessage);
+
         //write response to socket
-        n = write(newsockfd, replyMessage, 18);
-        if (n < 0) error("ERROR writing to socket");
+        length = write(newsockfd, replyMessage, 18);
+        if (length < 0) error("ERROR writing to socket");
     }
 
     cleanUpServer(newsockfd, sockfd);
