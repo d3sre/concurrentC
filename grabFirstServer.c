@@ -44,6 +44,35 @@ void error(const char *msg)
     exit(1);
 }
 
+void printPlayers(){
+    printf("\n");
+    printf("Playerlist:\n");
+    int i;
+    for(i=0; i < numberPlayers; i++){
+        printf("ID: %d, Name: %s\n", i, player[i]);
+    }
+}
+
+void printPlayfield(){
+    printf("\n");
+    printf("Playfield:\n");
+    int x;
+    int y;
+    for(y=0; y<FIELDSIZE;y++){
+        for(x=0; x< FIELDSIZE; x++) {
+            if(playfield[x][y] == -1) {
+                printf("-");
+            }
+            else {
+                printf("%d",playfield[x][y]);
+            }
+
+        }
+        printf("\n");
+    }
+
+}
+
 void cleanUpServer(int newsockfd, int sockfd){
     //### section: cleanup ###
     close(newsockfd);
@@ -67,11 +96,15 @@ void cleanUpServer(int newsockfd, int sockfd){
 }
 
 void addPlayer(const char* playername) {
+    //printf("\nADDPLAYER (new): %s\n", playername);
+
     if (player == NULL) {
         numberPlayers = 1;
         player = malloc(numberPlayers*sizeof(char*));
         player[numberPlayers - 1] = malloc(256*sizeof(char));
         strcpy(player[numberPlayers - 1], playername);
+
+        //printf("\nADDPLAYER (added): %s\n", player[0]);
     }
     else {
         char** tempPlayer = player;
@@ -91,9 +124,9 @@ void addPlayer(const char* playername) {
             free(tempPlayer[i]);
         }
         free(tempPlayer);
+
+        //printf("\nADDPLAYER (added): %s\n", player[numberPlayers - 1]);
     }
-
-
 }
 
 _Bool existPlayer(const char* playername) {
@@ -106,10 +139,22 @@ _Bool existPlayer(const char* playername) {
     return FALSE;
 }
 
+int getPlayerID(const char* playername){
+    if(existPlayer(playername)){
+        int i;
+        for(i=0; i< numberPlayers; i++) {
+            if (strcmp(playername,player[i]) == 0) {
+                return i;
+            }
+        }
+
+    }
+    return -1;
+}
 
 
 _Bool doHELLO(struct action* returnAction) {
-    printf("HELLO received");
+    printf("HELLO received\n");
 
     if (returnAction == NULL)
         return FALSE;
@@ -117,11 +162,9 @@ _Bool doHELLO(struct action* returnAction) {
     //TODO check ready parameters
     int successfulSignup = 1;
 
-
     if(successfulSignup){
-
         returnAction->cmd = SIZE;
-        returnAction->iParam2 = FIELDSIZE;
+        returnAction->iParam1 = FIELDSIZE;
     }
     else {
         returnAction->cmd = NACK;
@@ -133,23 +176,28 @@ _Bool doHELLO(struct action* returnAction) {
 _Bool doTAKE(int x, int y, char *playerName, struct action* returnAction) {
     printf("TAKE received on x:%d y: %d by: %s", x, y, playerName);
 
-    if (playerName == NULL || returnAction == NULL)
+    if (x< 0 || x>=FIELDSIZE || y<0 || y>= FIELDSIZE || playerName == NULL || returnAction == NULL)
         return FALSE;
 
     //TODO program checks if field is in use
     int successfulTake = 1;
 
-    if (existPlayer(playerName))
+    if (!existPlayer(playerName))
         addPlayer(playerName);
 
-
     if (successfulTake) {
+        playfield[x][y] = getPlayerID(playerName);
+
+
         returnAction->cmd = TAKEN;
 
     }
     else {
         returnAction->cmd = INUSE;
     }
+
+    printPlayfield();
+    printPlayers();
 
     return TRUE;
 
@@ -166,8 +214,8 @@ _Bool doSTATUS(int x, int y, struct action* returnAction) {
     int clientid = playfield[x][y];
 
     returnAction->cmd = PLAYERNAME;
-    if (clientid == 0){
-        strcpy(returnAction->sParam1,"FREE");
+    if (clientid == -1){
+        strcpy(returnAction->sParam1,"-");
     }
     else {
         strcpy(returnAction->sParam1, player[clientid]);
@@ -213,6 +261,12 @@ int main(int argc, char *argv[])
     for (x = 0; x < FIELDSIZE; x++){
         playfield[x] = malloc(FIELDSIZE*sizeof(int));
     }
+    int y;
+    for(x= 0; x < FIELDSIZE; x++){
+        for(y = 0; y < FIELDSIZE; y++){
+            playfield[x][y] = -1;
+        }
+    }
 
     // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -245,38 +299,40 @@ int main(int argc, char *argv[])
         bzero(buffer, 256);
         //read newsockfd to buffer
         length = read(newsockfd, buffer, 255);
-        if (length < 0) error("ERROR reading from socket");
+        if (length > 0) {
+            //error("ERROR reading from socket");
 
-        // change buffer (string) to struct action
-        decode(buffer, &currentAction);
+            // change buffer (string) to struct action
+            decode(buffer, &currentAction);
 
-        switch (currentAction.cmd) {
-            case HELLO:
-                doHELLO(&returnAction);
-                break;
-            case TAKE:
-                doTAKE(currentAction.iParam1, currentAction.iParam2, currentAction.sParam1, &returnAction);
-                break;
-            case STATUS:
-                doSTATUS(currentAction.iParam1, currentAction.iParam2, &returnAction);
-                break;
-            case END:
-                doEND(currentAction.sParam1, &returnAction);
-                break;
-            default:
-                error("ERROR on received action");
-                break;
+            switch (currentAction.cmd) {
+                case HELLO:
+                    doHELLO(&returnAction);
+                    break;
+                case TAKE:
+                    doTAKE(currentAction.iParam1, currentAction.iParam2, currentAction.sParam1, &returnAction);
+                    break;
+                case STATUS:
+                    doSTATUS(currentAction.iParam1, currentAction.iParam2, &returnAction);
+                    break;
+                case END:
+                    doEND(currentAction.sParam1, &returnAction);
+                    break;
+                default:
+                    error("ERROR on received action");
+                    break;
+            }
+
+            //print received message from buffer
+            printf("Here is the message: %s\n", buffer);
+
+            // change struct to string
+            encode(&returnAction, replyMessage);
+
+            //write response to socket
+            length = write(newsockfd, replyMessage, 18);
+            if (length < 0) error("ERROR writing to socket");
         }
-
-        //print received message from buffer
-        printf("Here is the message: %s\n", buffer);
-
-        // change struct to string
-        encode(&returnAction, replyMessage);
-
-        //write response to socket
-        length = write(newsockfd, replyMessage, 18);
-        if (length < 0) error("ERROR writing to socket");
     }
 
     cleanUpServer(newsockfd, sockfd);

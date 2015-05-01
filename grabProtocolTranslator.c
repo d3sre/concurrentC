@@ -27,7 +27,7 @@ void decode(const char* cmd, struct action* a) {
     }
     else if(strcmp(proto1st,"SIZE") == 0) {
         a->cmd = SIZE;
-        a->iParam1 = -1;
+        a->iParam1 = atoi(proto2nd);
         a->iParam2 = -1;
         strcpy(a->sParam1, "");
     }
@@ -45,9 +45,9 @@ void decode(const char* cmd, struct action* a) {
     }
     else if(strcmp(proto1st,"TAKE") == 0) {
         a->cmd = TAKE;
-        a->iParam1 = -1;
-        a->iParam2 = -1;
-        strcpy(a->sParam1, "");
+        a->iParam1 = atoi(proto2nd);
+        a->iParam2 = atoi(proto3rd);
+        strcpy(a->sParam1, proto4th);
     }
     else if(strcmp(proto1st,"TAKEN") == 0) {
         a->cmd = TAKEN;
@@ -63,27 +63,27 @@ void decode(const char* cmd, struct action* a) {
     }
     else if(strcmp(proto1st,"STATUS") == 0) {
         a->cmd = STATUS;
-        a->iParam1 = -1;
-        a->iParam2 = -1;
+        a->iParam1 = atoi(proto2nd);
+        a->iParam2 = atoi(proto3rd);
         strcpy(a->sParam1, "");
     }
     else if(strcmp(proto1st,"END") == 0) {
         a->cmd = END;
         a->iParam1 = -1;
         a->iParam2 = -1;
-        strcpy(a->sParam1, "");
+        strcpy(a->sParam1, proto2nd);
     }
-    else if(strcmp(proto1st,"PLAYERNAME") == 0) {
+    /*else if(strcmp(proto1st,"PLAYERNAME") == 0) {
         a->cmd = PLAYERNAME;
         a->iParam1 = -1;
         a->iParam2 = -1;
-        strcpy(a->sParam1, "");
-    }
+        strcpy(a->sParam1, proto1st);
+    }*/
     else {
-        a->cmd = ERROR;
+        a->cmd = PLAYERNAME;
         a->iParam1 = -1;
         a->iParam2 = -1;
-        strcpy(a->sParam1, "");
+        strcpy(a->sParam1, proto1st);
     }
 
 
@@ -111,87 +111,86 @@ void decode(const char* cmd, struct action* a) {
 
 
 
-    printf("entered parser-2 %s\n", proto1st);
-    printf("entered parser-2 %s\n", proto2nd);
-    printf("entered parser-2 %s\n", proto3rd);
-    printf("entered parser-2 %s\n", proto4th);
-
+    printf("\n");
+    printf("DECODE:\n");
+    switch (a->cmd) {
+        case HELLO:
+            printf("- Cmd: HELLO\n");
+            break;
+        case SIZE:
+            printf("- Cmd: SIZE\n");
+            break;
+        case NACK:
+            printf("- Cmd: NACK\n");
+            break;
+        case TAKEN:
+            printf("- Cmd: TAKEN\n");
+            break;
+        case INUSE:
+            printf("- Cmd: INUSE\n");
+            break;
+        case PLAYERNAME:
+            printf("- Cmd: PLAYERNAME\n");
+            break;
+        case START:
+            printf("- Cmd: START\n");
+            break;
+        case END:
+            printf("- Cmd: END\n");
+            break;
+        case TAKE:
+            printf("- Cmd: TAKE\n");
+            break;
+        case STATUS:
+            printf("- Cmd: STATUS\n");
+            break;
+        default:
+            printf("- Cmd: ERROR\n");
+            break;
+    }
+    printf("- iParam1: %d\n", a->iParam1);
+    printf("- iParam2: %d\n", a->iParam2);
+    printf("- sParam1: %s\n", a->sParam1);
 }
 
-void encode(struct action* a, const char* returnMessage) {
-
-    char tempReturnMessage[256];
-    char *integeParamter1 = (char *) (&a->iParam1);
-    char *integeParamter2 = (char *) (&a->iParam2);
-    char *stringParameter1 = (char *) (&a->sParam1);
-
-    if (a->cmd == SIZE){
-
-        strcpy(tempReturnMessage, "SIZE ");
-        strcat(tempReturnMessage, integeParamter1);
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-
-    }
-    else if(a->cmd == NACK) {
-        strcpy(tempReturnMessage, "NACK");
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-    }
-    else if (a->cmd == TAKEN){
-        strcpy(tempReturnMessage, "TAKEN");
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-
-    }
-    else if (a->cmd == INUSE) {
-        strcpy(tempReturnMessage, "INUSE");
-        strcat(tempReturnMessage, integeParamter1);
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-    }
-
-    else if (a->cmd == PLAYERNAME) {
-        strcpy(tempReturnMessage, stringParameter1);
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
+void encode(struct action* a, char* returnMessage) {
+    switch (a->cmd){
+        case HELLO:
+            strcpy(returnMessage, "HELLO\n");
+            break;
+        case SIZE:
+            sprintf(returnMessage, "SIZE %d\n", a->iParam1);
+            break;
+        case NACK:
+            strcpy(returnMessage, "NACK\n");
+            break;
+        case TAKEN:
+            strcpy(returnMessage, "TAKEN\n");
+            break;
+        case INUSE:
+            strcpy(returnMessage, "INUSE\n");
+            break;
+        case PLAYERNAME:
+            strcpy(returnMessage, a->sParam1);
+            break;
+        case START:
+            strcpy(returnMessage, "START\n");
+            break;
+        case END:
+            sprintf(returnMessage, "END %s\n", a->sParam1);
+            break;
+        case TAKE:
+            sprintf(returnMessage, "TAKE %d %d %s\n", a->iParam1, a->iParam2, a->sParam1);
+            break;
+        case STATUS:
+            sprintf(returnMessage, "STATUS %d %d\n", a->iParam1, a->iParam2);
+            break;
+        default:
+            strcpy(returnMessage, "Error - something went wrong in the encoder");
+            break;
     }
 
-    else if (a->cmd == START) {
-        strcpy(tempReturnMessage, "START");
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-    }
-
-    else if (a->cmd == END) {
-        strcpy(tempReturnMessage, "END ");
-        strcat(tempReturnMessage, stringParameter1);
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-    }
-
-    else if (a->cmd == TAKE){
-        //strtol(a->iParam1,NULL,256);
-        strcpy(tempReturnMessage, "TAKE ");
-        strcat(tempReturnMessage, integeParamter1);
-        strcat(tempReturnMessage, " ");
-        strcat(tempReturnMessage, integeParamter2);
-        strcat(tempReturnMessage, " ");
-        strcat(tempReturnMessage, stringParameter1);
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-    }
-
-    else if (a->cmd == STATUS){
-        strcpy(tempReturnMessage, "STATUS ");
-        strcat(tempReturnMessage, integeParamter1);
-        strcat(tempReturnMessage, " ");
-        strcat(tempReturnMessage, integeParamter2);
-        strcat(tempReturnMessage, "\n");
-        returnMessage = tempReturnMessage;
-    }
-
-    else {
-        returnMessage = "Error - something went wrong in the encoder";
-    }
+    printf("\n");
+    printf("ENCODE:\n");
+    printf("- String: %s\n", returnMessage);
 }

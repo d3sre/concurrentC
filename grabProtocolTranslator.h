@@ -15,6 +15,6 @@ struct action {
 };
 
 void decode(const char* cmd, struct action* a);
-void encode(struct action* a, const char* returnMessage);
+void encode(struct action* a, char* returnMessage);
 
 #endif //GRABFIRST_GRABPROTOCOLTRANSLATOR_H

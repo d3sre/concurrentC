@@ -181,40 +181,41 @@ int main(int argc, char *argv[])
         //clean buffer
         bzero(buffer, 256);
         // read 255 bytes from sockfd into buffer
-        n = read(sockfd, buffer, 255);
-        if (length < 0)
-            error("ERROR reading from socket");
-        //print buffer, terminated by newline \n
+        length = read(sockfd, buffer, 255);
+        if (length > 0) {
+            // error("ERROR reading from socket");
+            //print buffer, terminated by newline \n
 
-        decode(buffer,&currentAction);
-        printf("Buffer: %s\n", buffer);
+            decode(buffer, &currentAction);
+            printf("Buffer: %s\n", buffer);
 
-        switch (currentAction.cmd) {
-            case SIZE:
-                doSIZE(currentAction.iParam1);
-                break;
-            case NACK:
-                cleanUpClient(sockfd);
-                break;
-            case START:
-                doSTART(&returnAction);
-                break;
-            case INUSE:
-            case TAKEN:
-                updatePlayfield( &currentAction, &returnAction);
-                break;
-            case END:
-                printf("Winner was: %s, game has ended\n", currentAction.sParam1);
-                cleanUpClient(sockfd);
-                break;
-            default:
-                error("ERROR on received action");
-                break;
+            switch (currentAction.cmd) {
+                case SIZE:
+                    doSIZE(currentAction.iParam1);
+                    break;
+                case NACK:
+                    cleanUpClient(sockfd);
+                    break;
+                case START:
+                    doSTART(&returnAction);
+                    break;
+                case INUSE:
+                case TAKEN:
+                    //updatePlayfield(&currentAction, &returnAction);
+                    break;
+                case END:
+                    printf("Winner was: %s, game has ended\n", currentAction.sParam1);
+                    cleanUpClient(sockfd);
+                    break;
+                default:
+                    printf("Assuming player name was received ...: %s", currentAction.sParam1);
+                    break;
+            }
+
+            encode(&returnAction, returnMessage);
+
+            printf("Gameon: %d", gameon);
         }
-
-        encode(&returnAction, returnMessage);
-
-        printf("Gameon: %d", gameon);
     }
 
     cleanUpClient(sockfd);
