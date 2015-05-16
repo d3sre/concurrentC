@@ -15,3 +15,8 @@ CMake Tutorial: http://www.vtk.org/Wiki/CMake/Tutorials/How_to_create_a_ProjectC
 Annahme für Spiel:
 -Clients dürfen nicht gleich heissen
 -noch freies Feld liefert FREE als Name zurück
+
+Client-Server-Socket Tutorial: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+
+
+

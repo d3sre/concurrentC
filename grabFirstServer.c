@@ -238,8 +238,7 @@ _Bool doEND(char *playerName, struct action* returnAction) {
 
 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     //### section: setup server and socket ###
     int sockfd, newsockfd, portno;
     socklen_t clilen;
@@ -248,6 +247,7 @@ int main(int argc, char *argv[])
     int length;
     struct action currentAction;
     struct action returnAction;
+    pid_t parentProcess = getpid();
 
     if (argc < 3) {
         fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize>\n");
@@ -287,56 +287,102 @@ int main(int argc, char *argv[])
     clilen = sizeof(cli_addr);
 
     gameon = 1;
+    pid_t childpid;
+    _Bool isChild = FALSE;
     //### section: receiving input from client ###
-    //open new socket and return file descriptor
-    // this is to enable communication with client, separate socket with sockfd and client address, needs to happen for every new client connection
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    if (newsockfd < 0)
-        error("ERROR on accept");
+
 
     while (gameon == 1) {
-        // clear buffer
-        bzero(buffer, 256);
-        //read newsockfd to buffer
-        length = read(newsockfd, buffer, 255);
-        if (length > 0) {
-            //error("ERROR reading from socket");
+        //1. wait for new clients
+        //open new socket and return file descriptor
+        // this is to enable communication with client, separate socket with sockfd and client address, needs to happen for every new client connection
+        if (!isChild) {
+            newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+            if (newsockfd < 0)
+                error("ERROR on accept");
+            else {
+                childpid = fork();
 
-            // change buffer (string) to struct action
-            decode(buffer, &currentAction);
+                if (childpid < 0)
+                    error("ERROR on fork");
+                if (childpid == 0) {
+                    pid_t currentChildPID = getpid();
+                    pid_t parentPID = getppid();
+                    isChild = TRUE;
+                    printf("New Child PID is %d with parent %d\n", currentChildPID, parentPID);
+                    printf("Initial PID was %d\n", parentProcess);
 
-            switch (currentAction.cmd) {
-                case HELLO:
-                    doHELLO(&returnAction);
-                    break;
-                case TAKE:
-                    doTAKE(currentAction.iParam1, currentAction.iParam2, currentAction.sParam1, &returnAction);
-                    break;
-                case STATUS:
-                    doSTATUS(currentAction.iParam1, currentAction.iParam2, &returnAction);
-                    break;
-                case END:
-                    doEND(currentAction.sParam1, &returnAction);
-                    break;
-                default:
-                    error("ERROR on received action");
-                    break;
+                    // do stuff
+                }
+                if (childpid > 0){
+                    //still the parent process
+                    pid_t currentPID = getpid();
+                    isChild = FALSE;
+                    printf("Current PID is %d\n", currentPID);
+                    printf("Initial PID was %d\n", parentProcess);
+                }
             }
 
-            //print received message from buffer
-            printf("Here is the message: %s\n", buffer);
+            printf("I'm in the parent %d\n", getpid());
 
-            // change struct to string
-            encode(&returnAction, replyMessage);
+            //2. can we start the game yet
 
-            //write response to socket
-            length = write(newsockfd, replyMessage, 18);
-            if (length < 0) error("ERROR writing to socket");
+            //3. are we done yet
+
         }
+        else {
+
+            printf("I'm in the child %d\n", getpid());
+
+
+/*            //do read game input commands if a child
+
+            // clear buffer
+            bzero(buffer, 256);
+            //read newsockfd to buffer
+            length = read(newsockfd, buffer, 255);
+            if (length > 0) {
+                //error("ERROR reading from socket");
+
+                // change buffer (string) to struct action
+                decode(buffer, &currentAction);
+
+                switch (currentAction.cmd) {
+                    case HELLO:
+                        doHELLO(&returnAction);
+                        break;
+                    case TAKE:
+                        doTAKE(currentAction.iParam1, currentAction.iParam2, currentAction.sParam1, &returnAction);
+                        break;
+                    case STATUS:
+                        doSTATUS(currentAction.iParam1, currentAction.iParam2, &returnAction);
+                        break;
+                    case END:
+                        doEND(currentAction.sParam1, &returnAction);
+                        break;
+                    default:
+                        error("ERROR on received action");
+                        break;
+                }
+
+                //print received message from buffer
+                printf("Here is the message: %s\n", buffer);
+
+                // change struct to string
+                encode(&returnAction, replyMessage);
+
+                //write response to socket
+                length = write(newsockfd, replyMessage, 18);
+                if (length < 0) error("ERROR writing to socket");
+            }*/
+        }
+
     }
+
 
     cleanUpServer(newsockfd, sockfd);
 
 
     return 0;
 }
+
