@@ -293,14 +293,18 @@ int main(int argc, char *argv[]) {
 
 
     while (gameon == 1) {
+        //printf("I'm in the loop %d\n", getpid());
         //1. wait for new clients
         //open new socket and return file descriptor
         // this is to enable communication with client, separate socket with sockfd and client address, needs to happen for every new client connection
         if (!isChild) {
+            printf("[Parent:%d] I'm in the parent\n", getpid());
             newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+
             if (newsockfd < 0)
                 error("ERROR on accept");
             else {
+                printf("[Parent:%d] New connection was accepted (newsockfd): %d\n", getpid(), newsockfd);
                 childpid = fork();
 
                 if (childpid < 0)
@@ -309,21 +313,22 @@ int main(int argc, char *argv[]) {
                     pid_t currentChildPID = getpid();
                     pid_t parentPID = getppid();
                     isChild = TRUE;
-                    printf("New Child PID is %d with parent %d\n", currentChildPID, parentPID);
-                    printf("Initial PID was %d\n", parentProcess);
+                    printf("[Child:%d] New Child PID is %d with parent %d\n", currentChildPID, currentChildPID, parentPID);
+                    printf("[Child:%d] Initial PID was %d\n", currentChildPID, parentProcess);
 
                     // do stuff
+                    close(sockfd);
                 }
                 if (childpid > 0){
                     //still the parent process
                     pid_t currentPID = getpid();
                     isChild = FALSE;
-                    printf("Current PID is %d\n", currentPID);
-                    printf("Initial PID was %d\n", parentProcess);
+                    printf("[Parent:%d] Current PID is %d\n", currentPID, currentPID);
+                    printf("[Parent:%d] Initial PID was %d\n", currentPID, parentProcess);
                 }
             }
 
-            printf("I'm in the parent %d\n", getpid());
+
 
             //2. can we start the game yet
 
@@ -332,7 +337,7 @@ int main(int argc, char *argv[]) {
         }
         else {
 
-            printf("I'm in the child %d\n", getpid());
+            //printf("I'm in the child %d\n", getpid());
 
 
 /*            //do read game input commands if a child
