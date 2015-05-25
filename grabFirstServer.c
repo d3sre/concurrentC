@@ -57,9 +57,7 @@ void error(const char *msg)
 }
 
 void printPlayers(){
-    printf("\n");
-    printf("Number of players:%d\n", numberPlayers);
-    printf("Playerlist:\n");
+    printf("Number of players:%d - Playerlist:\n", numberPlayers);
     int i;
     for(i=0; i < numberPlayers; i++){
         printf("ID: %d, Name: %s\n", i, player[i]);
@@ -209,8 +207,8 @@ _Bool doTAKE(int x, int y, char *playerName, struct action* returnAction) {
         returnAction->cmd = INUSE;
     }
 
-    printPlayfield();
-    printPlayers();
+    //printPlayfield();
+    //printPlayers();
 
     return TRUE;
 
@@ -284,7 +282,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     //attach segment to data space
-    numberOfSockets = (int *) shmat(sharedMemID, NULL,0);
+    if ((numberOfSockets = (int *) shmat(sharedMemID, NULL, 0)) == (int *)-1) {
+        error("ERROR when trying to attach segment to data space \n");
+        return 1;
+    }
 //    if ((sharedMemory = shmat(sharedMemID, NULL,0)) == (char *) -1){
 //        error("ERROR when trying to attach segment to data space \n");
 //        return 1;
@@ -379,7 +380,20 @@ int main(int argc, char *argv[]) {
                     currentProcessType = childinteraction;
                     isChild = TRUE;
                     printf("[ChildinteractionPID:%d Mode : %d] New Child PID is %d with parent %d\n", currentChildPID, currentProcessType, currentChildPID, parentPID);
-                    numberOfSockets++;
+
+
+                    // get segment & set permissions
+                    if ((sharedMemID = shmget(sharedMemKey, sharedMemSize, 0666)) < 0) {
+                        error("ERROR when trying to create shared memory\n");
+                        return 1;
+                    }
+                    //attach segment to data space
+                    if ((numberOfSockets = (int *)shmat(sharedMemID, NULL, 0)) == (int *)-1) {
+                        error("ERROR when trying to attach segment to data space \n");
+                        return 1;
+                    }
+
+                    (*numberOfSockets)++;
 
                     // do stuff
                     close(sockfd);
@@ -431,7 +445,7 @@ int main(int argc, char *argv[]) {
                         doEND(currentAction.sParam1, &returnAction);
                         break;
                     default:
-                        printf("ChildinteractionPID:%d Mode : %d] ERROR on received action",currentChildPID, currentProcessType);
+                        printf("ChildinteractionPID:%d Mode : %d] ERROR on received action\n",currentChildPID, currentProcessType);
                         break;
                 }
 
@@ -454,9 +468,14 @@ int main(int argc, char *argv[]) {
 
 
             //2. can we start the game yet
-            printf("[GameplayPID:%d Mode: %d] Number of sockets:%d\n",currentPID, currentProcessType, numberOfSockets);
+            printf("[GameplayPID:%d Mode: %d] Number of sockets:%d\n",currentPID, currentProcessType, *numberOfSockets);
             printf("[GameplayPID:%d Mode: %d] Number of socketsSharedMemory:%d\n", currentPID, currentProcessType, sharedMemory);
+            char *logstring[25];
+            printf("[GameplayPID:%d Mode: %d]",currentPID, currentProcessType);
+
+
             printPlayers();
+            printPlayfield();
 
             sleep(10);
 
