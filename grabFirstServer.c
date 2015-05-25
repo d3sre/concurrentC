@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/shm.h>
 #include "grabProtocolTranslator.h"
 
 /*
@@ -27,13 +28,22 @@
 int gameon = 0;
 char replyMessage[256];
 
+//shared memory definition, source from http://www.lainoox.com/ipc-shared-memory-c/
+
+char c, tmp;
+int sharedMemID, sharedMemSize;
+key_t sharedMemKey;
+char *sharedMemory, *sharedMemS;
+
 //int n = 0;
 int** playfield;
 
 char** player;
 int numberPlayers;
+int numberOfSockets = 0;
 
 enum processType {gameplay , sockethandler, childinteraction};
+
 
 
 //char players[] = { 'one', 'two', 'test'};
@@ -48,6 +58,8 @@ void error(const char *msg)
 
 void printPlayers(){
     printf("\n");
+    printf("Number of sockets:%d\n", numberOfSockets);
+    printf("Number of players:%d\n", numberPlayers);
     printf("Playerlist:\n");
     int i;
     for(i=0; i < numberPlayers; i++){
@@ -237,7 +249,15 @@ _Bool doEND(char *playerName, struct action* returnAction) {
 
     return TRUE;
 }
+_Bool doSTART(struct action* returnAction) {
+    printf("START all");
 
+
+    gameon = 2;
+    returnAction->cmd = START;
+
+    return TRUE;
+}
 
 
 int main(int argc, char *argv[]) {
@@ -253,6 +273,29 @@ int main(int argc, char *argv[]) {
     enum processType currentProcessType = gameplay;
 
     pid_t parentProcess = getpid();
+
+    //shared memory definition, source from http://www.lainoox.com/ipc-shared-memory-c/
+
+
+    sharedMemKey = 1234; //like example from website
+    sharedMemSize = 1024; //like example from website
+    //create segment & set permissions
+    if ((sharedMemID = shmget(sharedMemKey, sharedMemSize, IPC_CREAT | 0666)) < 0) {
+        error("ERROR when trying to create shared memory\n");
+        return 1;
+    }
+    //attach segment to data space
+    if ((sharedMemory = shmat(sharedMemID, NULL,0)) == (char *) -1){
+        error("ERROR when trying to attach segment to data space \n");
+        return 1;
+    }
+    //zero out memory segment
+    memset(sharedMemory,0,sharedMemSize);
+    sharedMemS = sharedMemory;
+
+    //strncpy(sharedMemory, numberOfSockets, sharedMemSize);
+    *sharedMemory = numberOfSockets;
+
 
     if (argc < 3) {
         fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize>\n");
@@ -310,7 +353,7 @@ int main(int argc, char *argv[]) {
     //### section: receiving input from client ###
 
 
-    while (gameon == 1) {
+    while (gameon >= 1) {
 
         //printf("I'm in the loop %d\n", getpid());
         //1. wait for new clients
@@ -335,7 +378,8 @@ int main(int argc, char *argv[]) {
                     currentProcessType = childinteraction;
                     isChild = TRUE;
                     printf("[ChildinteractionPID:%d Mode : %d] New Child PID is %d with parent %d\n", currentChildPID, currentProcessType, currentChildPID, parentPID);
-
+                    numberOfSockets++;
+                    *sharedMemory=numberOfSockets;
                     // do stuff
                     close(sockfd);
                 }
@@ -408,7 +452,14 @@ int main(int argc, char *argv[]) {
 
             //2. can we start the game yet
 
+            printPlayers();
+
             sleep(10);
+
+            if (numberOfSockets >= (FIELDSIZE/2) && gameon == 1){
+                doSTART(&returnAction);
+
+            }
 
 
             //3. are we done yet
