@@ -23,13 +23,14 @@
 
 #define TRUE 1
 #define FALSE 0
-const char *CLIENTNAME = "alice";
+char CLIENTNAME[256];
 
 int gameon = 0;
 int fieldSize = 2;
 int n = 0;
 
 int** playfield;
+int clientStrategy;
 
 
 
@@ -46,7 +47,7 @@ void cleanUpClient(int sockfd) {
 
 _Bool doSIZE(int playfieldN){
     int x;
-    printf("SIZE received");
+    printf("SIZE received\n");
 
     // 4 as this is the minimum size
     if (playfieldN < 4){
@@ -66,7 +67,7 @@ _Bool doSIZE(int playfieldN){
 }
 
 _Bool doSTART(struct action* returnAction){
-    printf("START received");
+    printf("START received\n");
 
     if (returnAction == NULL) {
         return FALSE;
@@ -84,7 +85,7 @@ _Bool doSTART(struct action* returnAction){
 }
 
 _Bool updatePlayfield(struct action* currentAction, struct action* returnAction) {
-    //strategy 1
+
     int nextTriedFieldX;
     int nextTriedFieldY;
 
@@ -95,28 +96,36 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
     int lastTriedFieldX = currentAction->iParam1;
     int lastTriedFieldY = currentAction->iParam2;
 
+    //make internal notes of playfield state
     if (returnAction->cmd == TAKEN){
+        //mark field as taken
         playfield[lastTriedFieldX][lastTriedFieldY] = 1;
     }
     else if (returnAction->cmd == INUSE) {
         // other user currently accessing
+        //mark field as other user
         playfield[lastTriedFieldX][lastTriedFieldY] = 2;
     }
 
+    //strategy 1 implementation
+    if(clientStrategy == 1){
+        //define next X field
+        if (lastTriedFieldX < n) {
+            nextTriedFieldX = lastTriedFieldX+1;
+        }
+        else {
+            nextTriedFieldX = 0;
+        }
+        //define next Y field
+        if (lastTriedFieldY < n) {
+            nextTriedFieldY = lastTriedFieldY+1;
+        }
+        else {
+            nextTriedFieldY = 0;
+        }
 
-    if (lastTriedFieldX < n) {
-        nextTriedFieldX = lastTriedFieldX+1;
-    }
-    else {
-        nextTriedFieldX = 0;
     }
 
-    if (lastTriedFieldY < n) {
-        nextTriedFieldY = lastTriedFieldY+1;
-    }
-    else {
-        nextTriedFieldY = 0;
-    }
 
     returnAction->cmd = TAKE;
     returnAction->iParam1 = nextTriedFieldX;
@@ -137,19 +146,34 @@ int main(int argc, char *argv[])
     struct action currentAction;
     struct action returnAction;
 
-
     char buffer[256];
     char returnMessage[256];
     if (argc < 3) {
         fprintf(stderr,"usage %s hostname port\n", argv[0]);
         exit(0);
     }
+
+    //define client player name
+    printf("Please define Player Name: \n");
+    //clean buffer
+    bzero(buffer, 256);
+    //gets string from stream stdin, terminated with newline \n
+    fgets(buffer, 255, stdin);
+    if(strlen(buffer) == 0){
+        strncpy(CLIENTNAME,"alice",256);
+        //*CLIENTNAME = "alice";
+    }
+    else {
+        strncpy(CLIENTNAME,buffer,strlen(buffer));
+    }
+
+
     // assignes 2nd start parameter as port number
     portno = atoi(argv[2]);
     // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
-        error("ERROR opening socket");
+        error("ERROR opening socket\n");
     //define servername from start parameter by host database lookup
     server = gethostbyname(argv[1]);
     if (server == NULL) {
@@ -165,21 +189,44 @@ int main(int argc, char *argv[])
           server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
-        error("ERROR connecting");
-    printf("Connected to server");
+        error("ERROR connecting\n");
+    printf("%10s: Connected to server\n", CLIENTNAME);
+
+    printf("Please select the strategy ID: \n");
+    printf("1: simple from 0/0 to n/n \n");
+    printf("2: not implemented yet\n");
+    //clean buffer
+    bzero(buffer, 256);
+    //gets string from stream stdin, terminated with newline \n
+    fgets(buffer, 255, stdin);
+
+    int strategyInput = atoi(buffer);
+
+    switch(strategyInput){
+        case 1: clientStrategy = 1;
+            break;
+        case 2: clientStrategy = 2;
+            break;
+        default: clientStrategy = 1;
+    }
+
+    strncpy(buffer,"HELLO",256);
+    //*buffer = "HELLO";
 
     gameon = 1;
     while(gameon >= 1) {
-        printf("Please enter the message: ");
-        //clean buffer
-        bzero(buffer, 256);
-        //gets string from stream stdin, terminated with newline \n
-        fgets(buffer, 255, stdin);
+//        printf("Please enter the message: \n");
+//        //clean buffer
+//        bzero(buffer, 256);
+//        //gets string from stream stdin, terminated with newline \n
+//        fgets(buffer, 255, stdin);
+
+
         //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
         length = write(sockfd, buffer, strlen(buffer));
         if (length < 0)
-            error("ERROR writing to socket");
-        //clean buffer
+            error("ERROR writing to socket\n");
+        //clean buffer - > waiting for input
         bzero(buffer, 256);
         // read 255 bytes from sockfd into buffer
         length = read(sockfd, buffer, 255);
@@ -190,6 +237,7 @@ int main(int argc, char *argv[])
             decode(buffer, &currentAction);
             printf("Buffer: %s\n", buffer);
 
+            //possible receiving commands
             switch (currentAction.cmd) {
                 case SIZE:
                     doSIZE(currentAction.iParam1);
@@ -202,20 +250,20 @@ int main(int argc, char *argv[])
                     break;
                 case INUSE:
                 case TAKEN:
-                    //updatePlayfield(&currentAction, &returnAction);
+                    updatePlayfield(&currentAction, &returnAction);
                     break;
                 case END:
                     printf("Winner was: %s, game has ended\n", currentAction.sParam1);
                     cleanUpClient(sockfd);
                     break;
                 default:
-                    printf("Assuming player name was received ...: %s", currentAction.sParam1);
+                    printf("Assuming player name was received ...: %s\n", currentAction.sParam1);
                     break;
             }
 
             encode(&returnAction, returnMessage);
 
-            printf("Gameon: %d", gameon);
+            printf("Gameon: %d\n", gameon);
         }
     }
 
