@@ -111,8 +111,8 @@ void decode(const char* cmd, struct action* a) {
 
 
 
-    printf("\n");
-    printf("DECODE:\n");
+    //printf("\n");
+    printf("DECODE: ");
     switch (a->cmd) {
         case HELLO:
             printf("- Cmd: HELLO");
@@ -190,7 +190,7 @@ void encode(struct action* a, char* returnMessage) {
             break;
     }
 
-    printf("\n");
-    printf("ENCODE:\n");
+    //printf("\n");
+    printf("ENCODE: ");
     printf("- String: %s\n", returnMessage);
 }

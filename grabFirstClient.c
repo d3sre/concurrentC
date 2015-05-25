@@ -88,6 +88,7 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
 
     int nextTriedFieldX;
     int nextTriedFieldY;
+    _Bool moveMade = FALSE;
 
     if (currentAction == NULL || returnAction == NULL){
         return FALSE;
@@ -112,17 +113,31 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
         //define next X field
         if (lastTriedFieldX < n) {
             nextTriedFieldX = lastTriedFieldX+1;
+            moveMade = TRUE;
         }
         else {
             nextTriedFieldX = 0;
         }
         //define next Y field
-        if (lastTriedFieldY < n) {
-            nextTriedFieldY = lastTriedFieldY+1;
+        if (moveMade == FALSE){
+            if (lastTriedFieldY < n) {
+                nextTriedFieldY = lastTriedFieldY+1;
+            }
+            else {
+                nextTriedFieldY = 0;
+            }
         }
         else {
-            nextTriedFieldY = 0;
+            nextTriedFieldY = lastTriedFieldY;
         }
+
+    }
+
+    if (clientStrategy ==2){
+        int counter = lastTriedFieldY*n+lastTriedFieldX;
+        counter++;
+        nextTriedFieldY = counter/n;
+        nextTriedFieldX = counter%n;
 
     }
 
@@ -213,6 +228,10 @@ int main(int argc, char *argv[])
     strncpy(buffer,"HELLO",256);
     //*buffer = "HELLO";
 
+    //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
+    length = write(sockfd, buffer, strlen(buffer));
+    if (length < 0)
+        error("ERROR writing to socket\n");
     gameon = 1;
     while(gameon >= 1) {
 //        printf("Please enter the message: \n");
@@ -221,11 +240,6 @@ int main(int argc, char *argv[])
 //        //gets string from stream stdin, terminated with newline \n
 //        fgets(buffer, 255, stdin);
 
-
-        //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
-        length = write(sockfd, buffer, strlen(buffer));
-        if (length < 0)
-            error("ERROR writing to socket\n");
         //clean buffer - > waiting for input
         bzero(buffer, 256);
         // read 255 bytes from sockfd into buffer
@@ -241,10 +255,10 @@ int main(int argc, char *argv[])
             switch (currentAction.cmd) {
                 case SIZE:
                     doSIZE(currentAction.iParam1);
-                    break;
+                    continue;
                 case NACK:
                     cleanUpClient(sockfd);
-                    break;
+                    continue;
                 case START:
                     doSTART(&returnAction);
                     break;
@@ -255,15 +269,20 @@ int main(int argc, char *argv[])
                 case END:
                     printf("Winner was: %s, game has ended\n", currentAction.sParam1);
                     cleanUpClient(sockfd);
-                    break;
+                    continue;
                 default:
                     printf("Assuming player name was received ...: %s\n", currentAction.sParam1);
-                    break;
+                    continue;
+
             }
 
             encode(&returnAction, returnMessage);
+            //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
+            length = write(sockfd, returnMessage, strlen(returnMessage));
+            if (length < 0)
+                error("ERROR writing to socket\n");
 
-            printf("Gameon: %d\n", gameon);
+            //printf("Gameon: %d\n", gameon);
         }
     }
 

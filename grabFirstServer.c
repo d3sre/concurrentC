@@ -287,6 +287,7 @@ int main(int argc, char *argv[]) {
         error("ERROR when trying to attach segment to data space \n");
         return 1;
     }
+    memset(numberOfSockets,0,sharedMemSize);
 //    if ((sharedMemory = shmat(sharedMemID, NULL,0)) == (char *) -1){
 //        error("ERROR when trying to attach segment to data space \n");
 //        return 1;
@@ -378,7 +379,7 @@ int main(int argc, char *argv[]) {
                 if (childpid == 0) {
                     pid_t currentChildPID = getpid();
                     pid_t parentPID = getppid();
-                    currentProcessType = childinteraction;
+
                     isChild = TRUE;
                     printf("[ChildinteractionPID:%d Mode : %d] New Child PID is %d with parent %d\n", currentChildPID, currentProcessType, currentChildPID, parentPID);
 
@@ -395,7 +396,9 @@ int main(int argc, char *argv[]) {
                     }
 
                     (*numberOfSockets)++;
+                    printf("[ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, *numberOfSockets);
 
+                    currentProcessType = childinteraction;
                     // do stuff
                     close(sockfd);
                 }
@@ -406,10 +409,6 @@ int main(int argc, char *argv[]) {
                     printf("[SockethandlerPID:%d Mode: %d] Current PID is %d \n", currentPID, currentProcessType, currentPID);
                 }
             }
-
-
-
-
 
         }
         if (currentProcessType == childinteraction){
@@ -446,7 +445,7 @@ int main(int argc, char *argv[]) {
                         doEND(currentAction.sParam1, &returnAction);
                         break;
                     default:
-                        printf("ChildinteractionPID:%d Mode : %d] ERROR on received action\n",currentChildPID, currentProcessType);
+                        printf("[ChildinteractionPID:%d Mode : %d] ERROR on received action\n",currentChildPID, currentProcessType);
                         break;
                 }
 

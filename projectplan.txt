@@ -26,6 +26,7 @@ Next steps:
 - child loop communication 
 - shared memory 2.5h bis shared memory für numberOfSockets ohne semaphores
 
+- gameplay start soll flag setzen -> anderer prozess
 - bei gameplayfield erzeugung sharedmemory zuweisung durchführen und pointer übergeben
 - entscheiden was/wie daten ins shared memory -> struct für variablen shared & shared memory für spielfeld (zellenfelder errechnen)
  
