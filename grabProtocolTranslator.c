@@ -115,42 +115,42 @@ void decode(const char* cmd, struct action* a) {
     printf("DECODE:\n");
     switch (a->cmd) {
         case HELLO:
-            printf("- Cmd: HELLO\n");
+            printf("- Cmd: HELLO");
             break;
         case SIZE:
-            printf("- Cmd: SIZE\n");
+            printf("- Cmd: SIZE");
             break;
         case NACK:
-            printf("- Cmd: NACK\n");
+            printf("- Cmd: NACK");
             break;
         case TAKEN:
-            printf("- Cmd: TAKEN\n");
+            printf("- Cmd: TAKEN");
             break;
         case INUSE:
-            printf("- Cmd: INUSE\n");
+            printf("- Cmd: INUSE");
             break;
         case PLAYERNAME:
-            printf("- Cmd: PLAYERNAME\n");
+            printf("- Cmd: PLAYERNAME");
             break;
         case START:
-            printf("- Cmd: START\n");
+            printf("- Cmd: START");
             break;
         case END:
-            printf("- Cmd: END\n");
+            printf("- Cmd: END");
             break;
         case TAKE:
-            printf("- Cmd: TAKE\n");
+            printf("- Cmd: TAKE");
             break;
         case STATUS:
-            printf("- Cmd: STATUS\n");
+            printf("- Cmd: STATUS");
             break;
         default:
-            printf("- Cmd: ERROR\n");
+            printf("- Cmd: ERROR");
             break;
     }
-    printf("- iParam1: %d\n", a->iParam1);
-    printf("- iParam2: %d\n", a->iParam2);
-    printf("- sParam1: %s\n", a->sParam1);
+    printf(" - iParam1: %d", a->iParam1);
+    printf(" - iParam2: %d", a->iParam2);
+    printf(" - sParam1: %s\n", a->sParam1);
 }
 
 void encode(struct action* a, char* returnMessage) {
