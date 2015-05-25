@@ -56,7 +56,8 @@ void error(const char *msg)
     exit(1);
 }
 
-void printPlayers(){
+void printPlayers(const char *pInfo){
+    printf("%s ", pInfo);
     printf("Number of players:%d - Playerlist:\n", numberPlayers);
     int i;
     for(i=0; i < numberPlayers; i++){
@@ -299,7 +300,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    if (argc < 3) {
+    if (argc > 3) {
         fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize>\n");
         exit(1);
     }
@@ -413,7 +414,7 @@ int main(int argc, char *argv[]) {
         }
         if (currentProcessType == childinteraction){
             pid_t currentChildPID = getpid();
-            printf("[ChildinteractionPID:%d Mode : %d] Entered Child interaction loop part\n", currentChildPID, currentProcessType);
+            //printf("[ChildinteractionPID:%d Mode : %d] Entered Child interaction loop part\n", currentChildPID, currentProcessType);
 
             //printf("I'm in the child %d\n", getpid());
 
@@ -470,11 +471,11 @@ int main(int argc, char *argv[]) {
             //2. can we start the game yet
             printf("[GameplayPID:%d Mode: %d] Number of sockets:%d\n",currentPID, currentProcessType, *numberOfSockets);
             printf("[GameplayPID:%d Mode: %d] Number of socketsSharedMemory:%d\n", currentPID, currentProcessType, sharedMemory);
-            char *logstring[25];
-            printf("[GameplayPID:%d Mode: %d]",currentPID, currentProcessType);
+            char logstring[25];
+            sprintf(logstring, "[GameplayPID:%d Mode: %d]",currentPID, currentProcessType);
 
 
-            printPlayers();
+            printPlayers(logstring);
             printPlayfield();
 
             sleep(10);

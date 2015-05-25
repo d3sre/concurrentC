@@ -22,8 +22,11 @@ Client-Server-Socket Tutorial: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/
 
 Next steps:
 - create gameplay/sockethandler/child-mode (enum processType)   1.5h
-- program gameplay actions
-- child loop communication
-- shared memory
+- program gameplay actions 1.5h
+- child loop communication 
+- shared memory 2.5h bis shared memory für numberOfSockets ohne semaphores
 
-
+- bei gameplayfield erzeugung sharedmemory zuweisung durchführen und pointer übergeben
+- entscheiden was/wie daten ins shared memory -> struct für variablen shared & shared memory für spielfeld (zellenfelder errechnen)
+ 
+- semaphore implementieren
