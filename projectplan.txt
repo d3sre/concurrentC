@@ -21,7 +21,7 @@ Client-Server-Socket Tutorial: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/
 
 
 Next steps:
-- create gameplay/sockethandler/child-mode (enum processType)
+- create gameplay/sockethandler/child-mode (enum processType)   1.5h
 - program gameplay actions
 - child loop communication
 - shared memory
