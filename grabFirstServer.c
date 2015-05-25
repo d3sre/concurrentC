@@ -33,6 +33,8 @@ int** playfield;
 char** player;
 int numberPlayers;
 
+enum processType {gameplay , sockethandler, childinteraction};
+
 
 //char players[] = { 'one', 'two', 'test'};
 int FIELDSIZE = -1;
@@ -247,6 +249,9 @@ int main(int argc, char *argv[]) {
     int length;
     struct action currentAction;
     struct action returnAction;
+
+    enum processType currentProcessType = gameplay;
+
     pid_t parentProcess = getpid();
 
     if (argc < 3) {
@@ -287,24 +292,39 @@ int main(int argc, char *argv[]) {
     clilen = sizeof(cli_addr);
 
     gameon = 1;
-    pid_t childpid;
+    pid_t childpid, masterpid;
     _Bool isChild = FALSE;
+
+    masterpid = fork();
+    if (masterpid < 0)
+        error("error  on master fork");
+    if (masterpid == 0){
+        //entered first child
+        currentProcessType = sockethandler;
+    }
+    if (masterpid > 0) {
+        //still in master PID
+        currentProcessType = gameplay;
+    }
+
     //### section: receiving input from client ###
 
 
     while (gameon == 1) {
+
         //printf("I'm in the loop %d\n", getpid());
         //1. wait for new clients
         //open new socket and return file descriptor
         // this is to enable communication with client, separate socket with sockfd and client address, needs to happen for every new client connection
-        if (!isChild) {
-            printf("[Parent:%d] I'm in the parent\n", getpid());
+        if (currentProcessType == sockethandler) {
+            printf("[SockethandlerPID:%d Mode: %d] Entered Sockethandler interaction loop part\n", getpid(), currentProcessType);
+
             newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
 
             if (newsockfd < 0)
                 error("ERROR on accept");
             else {
-                printf("[Parent:%d] New connection was accepted (newsockfd): %d\n", getpid(), newsockfd);
+                printf("[SockethandlerPID:%d Mode: %d] New connection was accepted (newsockfd): %d\n", getpid(), currentProcessType, newsockfd);
                 childpid = fork();
 
                 if (childpid < 0)
@@ -312,9 +332,9 @@ int main(int argc, char *argv[]) {
                 if (childpid == 0) {
                     pid_t currentChildPID = getpid();
                     pid_t parentPID = getppid();
+                    currentProcessType = childinteraction;
                     isChild = TRUE;
-                    printf("[Child:%d] New Child PID is %d with parent %d\n", currentChildPID, currentChildPID, parentPID);
-                    printf("[Child:%d] Initial PID was %d\n", currentChildPID, parentProcess);
+                    printf("[ChildinteractionPID:%d Mode : %d] New Child PID is %d with parent %d\n", currentChildPID, currentProcessType, currentChildPID, parentPID);
 
                     // do stuff
                     close(sockfd);
@@ -323,24 +343,23 @@ int main(int argc, char *argv[]) {
                     //still the parent process
                     pid_t currentPID = getpid();
                     isChild = FALSE;
-                    printf("[Parent:%d] Current PID is %d\n", currentPID, currentPID);
-                    printf("[Parent:%d] Initial PID was %d\n", currentPID, parentProcess);
+                    printf("[SockethandlerPID:%d Mode: %d] Current PID is %d \n", currentPID, currentProcessType, currentPID);
                 }
             }
 
 
 
-            //2. can we start the game yet
 
-            //3. are we done yet
 
         }
-        else {
+        if (currentProcessType == childinteraction){
+            pid_t currentChildPID = getpid();
+            printf("[ChildinteractionPID:%d Mode : %d] Entered Child interaction loop part\n", currentChildPID, currentProcessType);
 
             //printf("I'm in the child %d\n", getpid());
 
 
-/*            //do read game input commands if a child
+            //do read game input commands if a child
 
             // clear buffer
             bzero(buffer, 256);
@@ -352,6 +371,7 @@ int main(int argc, char *argv[]) {
                 // change buffer (string) to struct action
                 decode(buffer, &currentAction);
 
+                //possible receiving commands
                 switch (currentAction.cmd) {
                     case HELLO:
                         doHELLO(&returnAction);
@@ -379,7 +399,19 @@ int main(int argc, char *argv[]) {
                 //write response to socket
                 length = write(newsockfd, replyMessage, 18);
                 if (length < 0) error("ERROR writing to socket");
-            }*/
+            }
+        }
+        if (currentProcessType == gameplay){
+            pid_t currentPID = getpid();
+            printf("[GameplayPID:%d Mode: %d] Entered gameplay interaction loop part\n", currentPID, currentProcessType);
+
+
+            //2. can we start the game yet
+
+            sleep(10);
+
+
+            //3. are we done yet
         }
 
     }
