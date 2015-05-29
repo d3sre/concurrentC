@@ -26,8 +26,10 @@ Next steps:
 - child loop communication 
 - shared memory 2.5h bis shared memory für numberOfSockets ohne semaphores
 
-- gameplay start soll flag setzen -> anderer prozess
+- gameplay start soll flag setzen -> anderer prozess 2h
 - bei gameplayfield erzeugung sharedmemory zuweisung durchführen und pointer übergeben
 - entscheiden was/wie daten ins shared memory -> struct für variablen shared & shared memory für spielfeld (zellenfelder errechnen)
+-> grossteil gemacht, char in struct macht noch probleme, 2.5h
+http://stackoverflow.com/questions/6501966/check-if-char-array-contains-int-float-or-double-value-and-store-value-to-res
  
 - semaphore implementieren

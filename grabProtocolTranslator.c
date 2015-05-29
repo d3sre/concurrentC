@@ -112,7 +112,7 @@ void decode(const char* cmd, struct action* a) {
 
 
     //printf("\n");
-    printf("DECODE: ");
+    printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, DECODE: ");
     switch (a->cmd) {
         case HELLO:
             printf("- Cmd: HELLO");
@@ -191,6 +191,6 @@ void encode(struct action* a, char* returnMessage) {
     }
 
     //printf("\n");
-    printf("ENCODE: ");
+    printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, ENCODE: ");
     printf("- String: %s\n", returnMessage);
 }

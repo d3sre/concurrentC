@@ -135,9 +135,11 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
 
     if (clientStrategy ==2){
         int counter = lastTriedFieldY*n+lastTriedFieldX;
+        printf("last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
         counter++;
         nextTriedFieldY = counter/n;
         nextTriedFieldX = counter%n;
+        printf("next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
 
     }
 
@@ -249,7 +251,7 @@ int main(int argc, char *argv[])
             //print buffer, terminated by newline \n
 
             decode(buffer, &currentAction);
-            printf("Buffer: %s\n", buffer);
+            printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, Client Buffer decoded: %s\n", buffer);
 
             //possible receiving commands
             switch (currentAction.cmd) {
