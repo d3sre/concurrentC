@@ -15,12 +15,12 @@ extern const int SLL_INFO;
 extern const int SLL_ALL_LEVELS; // Default
 
 // Simple logger categories (bit 8..31) - for mask flags
-extern const int SLC_CAT1_CHILDINTERACTION;
-extern const int SLC_CAT2_GAMEPLAY;
-extern const int SLC_CAT3_SOCKETHANDLER;
-extern const int SLC_CAT4_SOCKETCOMMUNICATION;
-extern const int SLC_CAT5_PROCESSDISPATCHING;
-extern const int SLC_CAT6_GENERALERRORS;
+extern const int SLC_CHILDINTERACTION;
+extern const int SLC_GAMEPLAY;
+extern const int SLC_SOCKETHANDLER;
+extern const int SLC_SOCKETCOMMUNICATION;
+extern const int SLC_PROCESSDISPATCHING;
+extern const int SLC_GENERALERRORS;
 extern const int SLC_ALL_CATEGORIES; // Default
 
 

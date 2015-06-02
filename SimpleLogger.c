@@ -18,12 +18,12 @@ const int SLL_INFO = 1 << 6;
 const int SLL_ALL_LEVELS = 248; // Default
 
 // Simple logger categories (bit 8..31) - for mask flags
-const int SLC_CAT1_CHILDINTERACTION = 1 << 8;
-const int SLC_CAT2_GAMEPLAY = 1 << 9;
-const int SLC_CAT3_SOCKETHANDLER = 1 << 10;
-const int SLC_CAT4_SOCKETCOMMUNICATION = 1 << 11;
-const int SLC_CAT5_PROCESSDISPATCHING = 1 << 12;
-const int SLC_CAT5_GENERALERRORS = 1 << 13;
+const int SLC_CHILDINTERACTION = 1 << 8;
+const int SLC_GAMEPLAY = 1 << 9;
+const int SLC_SOCKETHANDLER = 1 << 10;
+const int SLC_SOCKETCOMMUNICATION = 1 << 11;
+const int SLC_PROCESSDISPATCHING = 1 << 12;
+const int SLC_GENERALERRORS = 1 << 13;
 const int SLC_ALL_CATEGORIES = 4294967040; // Default
 
 
@@ -60,11 +60,11 @@ void startup_logger(const char *logger_tag, int output_flags, int console_mask_f
 	char intro_message[256] = "";
 	char log_file_name[LOGGER_TAG_SIZE + 4] = "";
 
-	if (g_logger_initialized)
+	/*if (g_logger_initialized)
 	{
 		printf("[WARNING] Logger already initialized!\n");
 		return;
-	}
+	}*/
 
 	strncpy(g_logger_tag, logger_tag, LOGGER_TAG_SIZE);
 	g_output_flags = output_flags;

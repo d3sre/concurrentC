@@ -6,6 +6,8 @@
 /* A simple server in the internet domain using TCP
    The port number is passed as an argument */
 // Source from http://www.linuxhowtos.org/C_C++/socket.htm
+#include <fcntl.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +17,8 @@
 #include <netinet/in.h>
 #include <sys/shm.h>
 #include "grabProtocolTranslator.h"
+#include "SimpleLogger.h"
+
 
 /*
  *  Game default parameters, might be exported or serialized
@@ -28,6 +32,27 @@
 int gameon = 0;
 char replyMessage[256];
 
+// Global defaults
+#define MAX_CLIENTS 256
+#define MAX_PLAYER_NAME_LENGTH 256 // Including ending '\0'
+
+// Shared memory mutex names
+const char* SHMMN_STATUS_VARIABLES = "STATUS_VARIABLES_MUTEX";
+const char* SHMMN_PLAYER_LIST = "PLAYER_LIST_MUTEX";
+const char* SHMMN_PLAYFIELD_ELEMENT_PREFIX = "STATUS_VARAIBLES_MUTEX_";
+
+// Shared memory keys
+#define SHMK_STATUS_VARIABLES 1000
+#define SHMK_PLAYER_LIST 2000
+#define SHMK_PLAYFIELD_ROOT 3000
+
+// Shared memory mutexes
+sem_t* mtxStatusVariables;
+sem_t* mtxPlayerList;
+sem_t** mtxPlayfieldElement;
+
+
+
 //shared memory definition, source from http://www.lainoox.com/ipc-shared-memory-c/
 
 char c, tmp;
@@ -35,8 +60,12 @@ int sharedMemID, sharedMemSize;
 key_t sharedMemKey;
 char *sharedMemory, *sharedMemS;
 
+// Shared memory for player list (assumed: max. 256 clients, max. name 255 chars)
+int shmPlayerListID;
+int shmPlayerListMemSize;
+char* shmPlayerList;
+
 int sharedMemIDStruct, sharedMemSizeStruct;
-key_t sharedMemKeyStruct;
 
 //int n = 0;
 int** playfield;
@@ -50,8 +79,8 @@ enum processType {gameplay , sockethandler, childinteraction};
 struct sharedVariables{
     int sv_gameLevel;
     int sv_numberOfPlayers;
+    int sv_numberOfPlayerNames;
     int sv_gamePlayfield;
-    char** sv_player;
 };
 
 //char players[] = { 'one', 'two', 'test'};
@@ -65,7 +94,7 @@ void error(const char *msg)
 }
 
 void printPlayers(struct sharedVariables *mainSharedVariables, const char *pInfo){
-    printf("%s ", pInfo);
+    /*printf("%s ", pInfo);
     printf("SLL_INFO | SLC_CAT2_GAMEPLAY, Number of players:%d - Playerlist:\n", mainSharedVariables->sv_numberOfPlayers);
     int i;
     for(i=0; i < mainSharedVariables->sv_numberOfPlayers; i++){
@@ -75,8 +104,21 @@ void printPlayers(struct sharedVariables *mainSharedVariables, const char *pInfo
         else {
             printf("ID: %d, Name: %s\n", i, mainSharedVariables->sv_player[i]);
         }
+    }*/
+
+    printf("%s ", pInfo);
+    printf("SLL_INFO | SLC_CAT2_GAMEPLAY, Number of players:%d - Playerlist:\n", mainSharedVariables->sv_numberOfPlayers);
+    int i;
+
+    sem_wait(mtxPlayerList);
+    sem_wait(mtxStatusVariables);
+
+    for (i = 0; i < mainSharedVariables->sv_numberOfPlayerNames; i++) {
+        printf("ID: %d, Name: %s\n", i, shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]);
     }
 
+    sem_post(mtxStatusVariables);
+    sem_post(mtxPlayerList);
 }
 
 void printPlayfield(struct sharedVariables *mainSharedVariables){
@@ -104,13 +146,9 @@ void cleanUpServer(struct sharedVariables *mainSharedVariables, int newsockfd, i
     close(newsockfd);
     close(sockfd);
 
-    if (mainSharedVariables->sv_player != NULL) {
-        int i;
-        for(i=0; i< mainSharedVariables->sv_numberOfPlayers -1; i++) {
-            free(mainSharedVariables->sv_player[i]);
-        }
-        free(mainSharedVariables->sv_player);
-    }
+    //TODO Mutex udn Shared Memories aufräumen
+
+
     if (playfield != NULL) {
         int i;
         for(i=0; i< mainSharedVariables->sv_gamePlayfield -1; i++) {
@@ -119,10 +157,12 @@ void cleanUpServer(struct sharedVariables *mainSharedVariables, int newsockfd, i
         free(playfield);
     }
 
+    shutdown_logger();
 }
 
 void addPlayer(struct sharedVariables *childSharedVariables, const char* playername) {
-    printf("SLL_INFO | SLC_CAT2_GAMEPLAY, ADDPLAYER (new): %s\n", playername);
+    /*printf("SLL_INFO | SLC_CAT2_GAMEPLAY, ADDPLAYER (new): %s\n", playername);
+
 
     if (childSharedVariables->sv_player == NULL) {
         childSharedVariables->sv_numberOfPlayers = 1;
@@ -152,21 +192,50 @@ void addPlayer(struct sharedVariables *childSharedVariables, const char* playern
         free(tempPlayer);
 
         //printf("\nADDPLAYER (added): %s\n", player[numberPlayers - 1]);
-    }
+    }*/
+
+    // Wait for necessary locks
+    sem_wait(mtxPlayerList);
+    sem_wait(mtxStatusVariables);
+
+    strcpy(shmPlayerList[childSharedVariables->sv_numberOfPlayerNames*MAX_PLAYER_NAME_LENGTH], playername);
+    childSharedVariables->sv_numberOfPlayerNames++;
+
+    sem_post(mtxStatusVariables);
+    sem_post(mtxPlayerList);
 }
 
 _Bool existPlayer(struct sharedVariables *mainSharedVariables, const char* playername) {
-    int i;
+    /*int i;
     for(i=0; i< mainSharedVariables->sv_numberOfPlayers; i++) {
         if (strcmp(playername,mainSharedVariables->sv_player[i]) == 0) {
             return TRUE;
         }
     }
-    return FALSE;
+    return FALSE;*/
+
+    int i;
+    _Bool result = FALSE;
+
+    // Wait for necessary locks
+    sem_wait(mtxPlayerList);
+    sem_wait(mtxStatusVariables);
+
+    for (i=0; i < mainSharedVariables->sv_numberOfPlayerNames; i++) {
+        if (strcmp(playername,shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]) == 0) {
+            result = TRUE;
+            break;
+        }
+    }
+
+    sem_post(mtxStatusVariables);
+    sem_post(mtxPlayerList);
+
+    return result;
 }
 
 int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playername){
-    if(existPlayer(mainSharedVariables,playername)){
+    /*if(existPlayer(mainSharedVariables,playername)){
         int i;
         for(i=0; i< mainSharedVariables->sv_numberOfPlayers; i++) {
             if (strcmp(playername,mainSharedVariables->sv_player[i]) == 0) {
@@ -175,12 +244,35 @@ int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playern
         }
 
     }
-    return -1;
+    return -1;*/
+
+    int i;
+    int id = -1;
+
+    if (!existPlayer(mainSharedVariables,playername))
+        return id;
+
+    // Wait for necessary locks
+    sem_wait(mtxPlayerList);
+    sem_wait(mtxStatusVariables);
+
+    for(i=0; i< mainSharedVariables->sv_numberOfPlayerNames; i++) {
+        if (strcmp(playername,shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]) == 0) {
+            id = i;
+            break;
+        }
+    }
+
+    sem_post(mtxStatusVariables);
+    sem_post(mtxPlayerList);
+
+    return id;
 }
 
 
 _Bool doHELLO(struct sharedVariables *childSharedVariables, struct action* returnAction) {
-    printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, HELLO received  with Playfieldsize: %d \n", childSharedVariables->sv_gamePlayfield);
+    //TODO printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, HELLO received  with Playfieldsize: %d \n", childSharedVariables->sv_gamePlayfield);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, "HELLO received  with Playfieldsize: %d\n", childSharedVariables->sv_gamePlayfield);
 
     if (returnAction == NULL)
         return FALSE;
@@ -245,7 +337,10 @@ _Bool doSTATUS(struct sharedVariables *childSharedVariables, int x, int y, struc
         strcpy(returnAction->sParam1,"-");
     }
     else {
-        strcpy(returnAction->sParam1, childSharedVariables->sv_player[clientid]);
+        // Wait for necessary locks
+        sem_wait(mtxPlayerList);
+        strcpy(returnAction->sParam1, shmPlayerList[clientid*MAX_PLAYER_NAME_LENGTH]);
+        sem_post(mtxPlayerList);
     }
     return TRUE;
 }
@@ -300,6 +395,34 @@ int main(int argc, char *argv[]) {
 
     pid_t parentProcess = getpid();
 
+    if (argc > 3) {
+        fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize>\n");
+        exit(1);
+    }
+    FIELDSIZE = atoi(argv[2]);
+
+    // Open shared nemory mutexes
+    // Mutex for status variables
+    if ((mtxStatusVariables = sem_open(SHMMN_STATUS_VARIABLES, O_CREAT, 0666, 1)) == SEM_FAILED) {
+        error("semaphore initialization");
+        return 1;
+    }
+    // Mutex for player list
+    if ((mtxPlayerList = sem_open(SHMMN_PLAYER_LIST, O_CREAT, 0666, 1)) == SEM_FAILED) {
+        error("semaphore initialization");
+        return 1;
+    }
+    // Mutexes for playfield elementst
+    int i;
+    char shmmnPlayfieldElementName[256];
+    for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
+        sprintf(shmmnPlayfieldElementName, "%s%d", SHMMN_PLAYFIELD_ELEMENT_PREFIX, i);
+        if ((mtxStatusVariables = sem_open(shmmnPlayfieldElementName, O_CREAT, 0666, 1)) == SEM_FAILED) {
+            error("semaphore initialization");
+            return 1;
+        }
+    }
+
     //shared memory definition, source from http://www.lainoox.com/ipc-shared-memory-c/
 
 
@@ -319,16 +442,30 @@ int main(int argc, char *argv[]) {
     printf("SLL_WARNING | SLC_CAT6_GENERALERRORS, - 2 -\n");
     memset(numberOfSockets,0,sharedMemSize);
 
-    sharedMemKeyStruct = 5678; //like example from website
     sharedMemSizeStruct = 1024; //like example from website
     //create segment & set permissions
-    if ((sharedMemIDStruct = shmget(sharedMemKeyStruct, sharedMemSizeStruct, IPC_CREAT | 0666)) < 0) {
+    if ((sharedMemIDStruct = shmget(SHMK_STATUS_VARIABLES, sharedMemSizeStruct, IPC_CREAT | 0666)) < 0) {
         error("SLL_ERROR | SLC_CAT6_GENERALERRORS, ERROR when trying to create shared memory\n");
         return 1;
     }
     //attach segment to data space
     struct sharedVariables *mainSharedVariables = (struct sharedVariables *) shmat(sharedMemIDStruct, NULL, 0);
     memset(mainSharedVariables,0,sharedMemSizeStruct);
+
+    // Create Player List in shared memory
+    shmPlayerListMemSize = MAX_CLIENTS*MAX_PLAYER_NAME_LENGTH*sizeof(char);
+    // Create segment & set permissions
+    if ((shmPlayerListID = shmget(SHMK_PLAYER_LIST, shmPlayerListMemSize, IPC_CREAT | 0666)) < 0) {
+        error("SLL_ERROR | SLC_CAT6_GENERALERRORS, ERROR when trying to create shared memory\n");
+        return 1;
+    }
+    // Attach segment to data space
+    if ((shmPlayerList = (char*)shmat(shmPlayerListID, NULL, 0)) == (char*)-1) {
+        error("SLL_ERROR | SLC_CAT5_PROCESSDISPATCHING, ERROR when trying to attach segment to data space \n");
+        return 1;
+    }
+    memset(shmPlayerList,0,shmPlayerListMemSize);
+
 //    if ((*mainSharedVariables == ) {
 //        error("SLL_ERROR | SLC_CAT6_GENERALERRORS, ERROR when trying to attach segment to data space \n");
 //        return 1;
@@ -347,14 +484,10 @@ int main(int argc, char *argv[]) {
 
 
     printf("SLL_WARNING | SLC_CAT6_GENERALERRORS, - 3 -\n");
-    if (argc > 3) {
-        fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize>\n");
-        exit(1);
-    }
-    FIELDSIZE = atoi(argv[2]);
 
     mainSharedVariables->sv_gameLevel=0;
     mainSharedVariables->sv_numberOfPlayers=0;
+    mainSharedVariables->sv_numberOfPlayerNames = 0;
     mainSharedVariables->sv_gamePlayfield=FIELDSIZE;
 
     int x;
@@ -401,10 +534,32 @@ int main(int argc, char *argv[]) {
     if (masterpid == 0){
         //entered first child
         currentProcessType = sockethandler;
+
+        char socketHandlerLogTag[256];
+        sprintf(socketHandlerLogTag, "SOCKETHANDLER:%d", getpid());
+        startup_logger(socketHandlerLogTag, SLO_CONSOLE | SLO_FILE, SLC_SOCKETHANDLER, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+        log_printf(SLC_SOCKETHANDLER, "Hello\n");
+
+        // Get access to Player List in shared memory
+        // get segment & set permissions
+        if ((shmPlayerListID = shmget(SHMK_PLAYER_LIST, shmPlayerListMemSize, 0666)) < 0) {
+            error("SLL_ERROR | SLC_CAT5_PROCESSDISPATCHING, ERROR when trying to create shared memory\n");
+            return 1;
+        }
+        //attach segment to data space
+        if ((shmPlayerList = (char*)shmat(shmPlayerListID, NULL, 0)) == (char*)-1) {
+            error("SLL_ERROR | SLC_CAT5_PROCESSDISPATCHING, ERROR when trying to attach segment to data space \n");
+            return 1;
+        }
     }
     if (masterpid > 0) {
         //still in master PID
         currentProcessType = gameplay;
+
+        char gameplayLogTag[256];
+        sprintf(gameplayLogTag, "GAMEPLAY:%d", getpid());
+        startup_logger(gameplayLogTag, SLO_CONSOLE | SLO_FILE, SLC_GAMEPLAY, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+        log_printf(SLC_GAMEPLAY, "Hello\n");
     }
 
     //### section: receiving input from client ###
@@ -433,6 +588,23 @@ int main(int argc, char *argv[]) {
                     pid_t currentChildPID = getpid();
                     pid_t parentPID = getppid();
 
+                    char childLogTag[256];
+                    sprintf(childLogTag, "CHILDINTERACTION:%d", currentChildPID);
+                    startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLC_CHILDINTERACTION|SLC_SOCKETCOMMUNICATION|SLC_PROCESSDISPATCHING, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+                    log_printf(SLC_PROCESSDISPATCHING, "Hello\n");
+
+                    // Get access to Player List in shared memory
+                    // get segment & set permissions
+                    if ((shmPlayerListID = shmget(SHMK_PLAYER_LIST, shmPlayerListMemSize, 0666)) < 0) {
+                        error("SLL_ERROR | SLC_CAT5_PROCESSDISPATCHING, ERROR when trying to create shared memory\n");
+                        return 1;
+                    }
+                    //attach segment to data space
+                    if ((shmPlayerList = (char*)shmat(shmPlayerListID, NULL, 0)) == (char*)-1) {
+                        error("SLL_ERROR | SLC_CAT5_PROCESSDISPATCHING, ERROR when trying to attach segment to data space \n");
+                        return 1;
+                    }
+
                     isChild = TRUE;
                     printf("[SLL_INFO | SLC_CAT5_PROCESSDISPATCHING , ChildinteractionPID:%d Mode : %d] New Child PID is %d with parent %d\n", currentChildPID, currentProcessType, currentChildPID, parentPID);
 
@@ -449,7 +621,7 @@ int main(int argc, char *argv[]) {
                     }
 
                     //create segment & set permissions
-                    if ((sharedMemIDStruct = shmget(sharedMemKeyStruct, sharedMemSizeStruct, 0666)) < 0) {
+                    if ((sharedMemIDStruct = shmget(SHMK_STATUS_VARIABLES, sharedMemSizeStruct, 0666)) < 0) {
                         error("SLL_ERROR | SLC_CAT5_PROCESSDISPATCHING, ERROR when trying to create shared memory\n");
                         return 1;
                     }
@@ -458,9 +630,11 @@ int main(int argc, char *argv[]) {
 
                     socketSharedVariables->sv_numberOfPlayers++;
                     (*numberOfSockets)++;
-                    printf("[SLL_INFO | SLC_CAT5_PROCESSDISPATCHING, ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
+                    //TODO printf("[SLL_INFO | SLC_CAT5_PROCESSDISPATCHING, ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
+                    log_printf(SLL_INFO|SLC_PROCESSDISPATCHING, "ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
 
                     currentProcessType = childinteraction;
+
                     // do stuff
                     close(sockfd);
                 }
@@ -477,7 +651,7 @@ int main(int argc, char *argv[]) {
             pid_t currentChildPID = getpid();
 
             //create segment & set permissions
-            if ((sharedMemIDStruct = shmget(sharedMemKeyStruct, sharedMemSizeStruct, 0666)) < 0) {
+            if ((sharedMemIDStruct = shmget(SHMK_STATUS_VARIABLES, sharedMemSizeStruct, 0666)) < 0) {
                 error("SLL_ERROR | SLC_CAT1_CHILDINTERACTION, ERROR when trying to create shared memory\n");
                 return 1;
             }
@@ -540,32 +714,31 @@ int main(int argc, char *argv[]) {
 
 
             pid_t currentPID = getpid();
-            printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, GameplayPID:%d Mode: %d] Entered gameplay interaction loop part\n", currentPID, currentProcessType);
+            //TODO printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, GameplayPID:%d Mode: %d] Entered gameplay interaction loop part\n", currentPID, currentProcessType);
 
 
             //2. can we start the game yet
-            printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, GameplayPID:%d Mode: %d] Number of players:%d\n",currentPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
+            //TODO printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, GameplayPID:%d Mode: %d] Number of players:%d\n",currentPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
             //printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, GameplayPID:%d Mode: %d] Number of socketsSharedMemory:%d\n", currentPID, currentProcessType, sharedMemory);
             char logstring[25];
             sprintf(logstring, "[GameplayPID:%d Mode: %d]",currentPID, currentProcessType);
 
 
             printPlayers(mainSharedVariables, logstring);
-            printPlayfield(mainSharedVariables);
+            //TODO printPlayfield(mainSharedVariables);
 
             sleep(2);
 
             if (mainSharedVariables->sv_numberOfPlayers >= (mainSharedVariables->sv_gamePlayfield/2) && mainSharedVariables->sv_gameLevel == 1){
                 mainSharedVariables->sv_gameLevel=2;
-                printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, Game could be started");
+                //TODO printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, Game could be started");
 
                 //doSTART(&returnAction);
 
             }
 
-            printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, current Shared Memory: GameLevel: %d, Fieldsize: %d, NumberOfPlayers: %d\n",mainSharedVariables->sv_gameLevel, mainSharedVariables->sv_gamePlayfield, mainSharedVariables->sv_numberOfPlayers);
-
-
+            //TODO printf("[SLL_INFO | SLC_CAT2_GAMEPLAY, current Shared Memory: GameLevel: %d, Fieldsize: %d, NumberOfPlayers: %d\n",mainSharedVariables->sv_gameLevel, mainSharedVariables->sv_gamePlayfield, mainSharedVariables->sv_numberOfPlayers);
+            log_printf(SLL_INFO|SLC_GAMEPLAY, "Current Shared Memory: GameLevel: %d, Fieldsize: %d, NumberOfPlayers: %d\n", mainSharedVariables->sv_gameLevel, mainSharedVariables->sv_gamePlayfield, mainSharedVariables->sv_numberOfPlayers);
 
             //3. are we done yet
         }
