@@ -12,6 +12,7 @@ extern const int SLL_FATAL;
 extern const int SLL_ERROR;
 extern const int SLL_WARNING;
 extern const int SLL_INFO;
+extern const int SLL_IDLE;
 extern const int SLL_ALL_LEVELS; // Default
 
 // Simple logger categories (bit 8..31) - for mask flags

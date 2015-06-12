@@ -15,6 +15,7 @@ const int SLL_FATAL = 1 << 3;
 const int SLL_ERROR = 1 << 4;
 const int SLL_WARNING = 1 << 5;
 const int SLL_INFO = 1 << 6;
+const int SLL_IDLE = 1 << 7;
 const int SLL_ALL_LEVELS = 248; // Default
 
 // Simple logger categories (bit 8..31) - for mask flags
@@ -220,6 +221,8 @@ void log_printf(int mask_flag, const char *text, ...)
 		strncpy(level_buffer, " | WARNING", 11);
 	if (mask_flag & SLL_INFO)
 		strncpy(level_buffer, " |    INFO", 11);
+	if (mask_flag & SLL_IDLE)
+		strncpy(level_buffer, " |    IDLE", 11);
 
 	output_buffer = NULL;
 	output_length = 1 + strnlen(g_logger_tag, LOGGER_TAG_SIZE) + 11 + 2 + strnlen(arg_buffer, arg_buffer_length) + 1;
