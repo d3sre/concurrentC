@@ -148,8 +148,9 @@ void decode(const char* cmd, struct action* a) {
             log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: ERROR\n");
             break;
     }
-    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - iParam1: %d", a->iParam1);
-    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - iParam2: %d", a->iParam2);
+  //  log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - iParam1: %d / iParam2: %d / sParam1: %s\n", a->iParam1, a->iParam2, a->sParam1);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - iParam1: %d\n", a->iParam1);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - iParam2: %d\n", a->iParam2);
     log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - sParam1: %s\n", a->sParam1);
 }
 

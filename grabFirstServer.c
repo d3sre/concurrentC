@@ -36,20 +36,20 @@ char replyMessage[256];
 #define MAX_CLIENTS 256
 #define MAX_PLAYER_NAME_LENGTH 256 // Including ending '\0'
 
-// Shared memory mutex names
-const char* SHMMN_STATUS_VARIABLES = "/STATUS-VARIABLES-MUTEX";
-const char* SHMMN_PLAYER_LIST = "/PLAYER-LIST-MUTEX";
-const char* SHMMN_PLAYFIELD_ELEMENT_PREFIX = "/STATUS-VARAIBLES-MUTEX-";
+// Shared memory semaphores names
+const char* SHMSN_STATUS_VARIABLES = "/STATUS-VARIABLES-SEMAPHORE";
+const char* SHMSN_PLAYER_LIST = "/PLAYER-LIST-SEMAPHORE";
+const char* SHMSN_PLAYFIELD_ELEMENT_PREFIX = "/STATUS-VARAIBLES-SEMAPHORE-";
 
 // Shared memory keys
 #define SHMK_STATUS_VARIABLES 1000
 #define SHMK_PLAYER_LIST 2000
 #define SHMK_PLAYFIELD_ROOT 3000
 
-// Shared memory mutexes
-sem_t* mtxStatusVariables;
-sem_t *mtxPlayerList;
-sem_t** mtxPlayfieldElement;
+// Shared memory semaphores
+sem_t* semStatusVariables;
+sem_t *semPlayerList;
+sem_t** semPlayfieldElement;
 
 // Shared memory for player list (assumed: max. 256 clients, max. name 255 chars)
 int shmPlayerListID;
@@ -61,9 +61,6 @@ int sharedMemIDStruct, sharedMemSizeStruct;
 //int n = 0;
 int** playfield;
 
-char** player;
-int numberPlayers;
-
 enum processType {gameplay , sockethandler, childinteraction};
 
 struct sharedVariables{
@@ -73,7 +70,6 @@ struct sharedVariables{
     int sv_gamePlayfield;
 };
 
-//char players[] = { 'one', 'two', 'test'};
 int FIELDSIZE = -1;
 
 
@@ -84,24 +80,10 @@ void error(int mask_flag, const char *msg)
 }
 
 void printPlayers(struct sharedVariables *mainSharedVariables, const char *pInfo){
-    /*//TODO printf("%s ", pInfo);
-    printf("SLL_INFO | SLC_CAT2_GAMEPLAY, Number of players:%d - Playerlist:\n", mainSharedVariables->sv_numberOfPlayers);
-    int i;
-    for(i=0; i < mainSharedVariables->sv_numberOfPlayers; i++){
-        if(mainSharedVariables->sv_player[i] == NULL){
-            printf("ID: %d, Name: %s\n", i, "No name yet");
-        }
-        else {
-            printf("ID: %d, Name: %s\n", i, mainSharedVariables->sv_player[i]);
-        }
-    }*/
-
-    //TODO printf("%s ", pInfo);
-
     int i;
 
-    sem_wait(mtxPlayerList);
-    sem_wait(mtxStatusVariables);
+    sem_wait(semPlayerList);
+    sem_wait(semStatusVariables);
 
     log_printf(SLL_INFO|SLC_GAMEPLAY, "PlayerList: Number of players: %d\n", mainSharedVariables->sv_numberOfPlayers);
     log_printf(SLL_INFO|SLC_GAMEPLAY, "PlayerList: Number of player names: %d\n", mainSharedVariables->sv_numberOfPlayerNames);
@@ -111,12 +93,11 @@ void printPlayers(struct sharedVariables *mainSharedVariables, const char *pInfo
         log_printf(SLL_INFO|SLC_GAMEPLAY, "- ID: %d, Name: %s\n", i, &shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]);
     }
 
-    sem_post(mtxStatusVariables);
-    sem_post(mtxPlayerList);
+    sem_post(semStatusVariables);
+    sem_post(semPlayerList);
 }
 
 void printPlayfield(struct sharedVariables *mainSharedVariables){
-
     log_printf(SLL_INFO|SLC_GAMEPLAY, "Playfield:\n");
     int x;
     int y;
@@ -142,6 +123,7 @@ void cleanUpServer(struct sharedVariables *mainSharedVariables, int newsockfd, i
     log_printf(SLL_INFO|SLC_GAMEPLAY, "in cleanUpServer function\n");
 
     //TODO Mutex udn Shared Memories aufräumen
+    //-> ev Mutext und Shared Memories am ende von main einfügen?
 
 
     if (playfield != NULL) {
@@ -157,66 +139,27 @@ void cleanUpServer(struct sharedVariables *mainSharedVariables, int newsockfd, i
 
 void addPlayer(struct sharedVariables *childSharedVariables, const char* playername) {
     log_printf(SLL_INFO|SLC_GAMEPLAY, "in addPlayer function\n");
-    /*printf("SLL_INFO | SLC_CAT2_GAMEPLAY, ADDPLAYER (new): %s\n", playername);
-
-
-    if (childSharedVariables->sv_player == NULL) {
-        childSharedVariables->sv_numberOfPlayers = 1;
-        childSharedVariables->sv_player = malloc(childSharedVariables->sv_numberOfPlayers*sizeof(char*));
-        childSharedVariables->sv_player[childSharedVariables->sv_numberOfPlayers - 1] = malloc(256*sizeof(char));
-        strcpy(childSharedVariables->sv_player[childSharedVariables->sv_numberOfPlayers - 1], playername);
-
-        //printf("\nADDPLAYER (added): %s\n", player[0]);
-    }
-    else {
-        char** tempPlayer = childSharedVariables->sv_player;
-
-        childSharedVariables->sv_numberOfPlayers++;
-        childSharedVariables->sv_player = malloc(childSharedVariables->sv_numberOfPlayers*sizeof(char*));
-        int i;
-        //copy old players from old array to new one
-        for(i = 0; i < childSharedVariables->sv_numberOfPlayers - 1; i++) {
-            childSharedVariables->sv_player[i] = malloc(256 * sizeof(char));
-            strcpy(childSharedVariables->sv_player[i], tempPlayer[i]);
-        }
-        childSharedVariables->sv_player[childSharedVariables->sv_numberOfPlayers - 1] = malloc(256*sizeof(char));
-        strcpy(childSharedVariables->sv_player[childSharedVariables->sv_numberOfPlayers - 1], playername);
-
-        for(i=0; i< childSharedVariables->sv_numberOfPlayers -1; i++) {
-            free(tempPlayer[i]);
-        }
-        free(tempPlayer);
-
-        //printf("\nADDPLAYER (added): %s\n", player[numberPlayers - 1]);
-    }*/
 
     // Wait for necessary locks
-    sem_wait(mtxPlayerList);
-    sem_wait(mtxStatusVariables);
+    sem_wait(semPlayerList);
+    sem_wait(semStatusVariables);
 
     strcpy(&shmPlayerList[childSharedVariables->sv_numberOfPlayerNames*MAX_PLAYER_NAME_LENGTH], playername);
     childSharedVariables->sv_numberOfPlayerNames++;
 
-    sem_post(mtxStatusVariables);
-    sem_post(mtxPlayerList);
+    sem_post(semStatusVariables);
+    sem_post(semPlayerList);
 }
 
 _Bool existPlayer(struct sharedVariables *mainSharedVariables, const char* playername) {
     log_printf(SLL_INFO|SLC_GAMEPLAY, "in existPlayer function\n");
-    /*int i;
-    for(i=0; i< mainSharedVariables->sv_numberOfPlayers; i++) {
-        if (strcmp(playername,mainSharedVariables->sv_player[i]) == 0) {
-            return TRUE;
-        }
-    }
-    return FALSE;*/
 
     int i;
     _Bool result = FALSE;
 
     // Wait for necessary locks
-    sem_wait(mtxPlayerList);
-    sem_wait(mtxStatusVariables);
+    sem_wait(semPlayerList);
+    sem_wait(semStatusVariables);
 
     for (i = 0; i < mainSharedVariables->sv_numberOfPlayerNames; i++) {
         if (strcmp(playername, &shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]) == 0) {
@@ -225,24 +168,14 @@ _Bool existPlayer(struct sharedVariables *mainSharedVariables, const char* playe
         }
     }
 
-    sem_post(mtxStatusVariables);
-    sem_post(mtxPlayerList);
+    sem_post(semStatusVariables);
+    sem_post(semPlayerList);
 
     return result;
 }
 
 int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playername){
     log_printf(SLL_INFO|SLC_GAMEPLAY, "getPlayerID function\n");
-    /*if(existPlayer(mainSharedVariables,playername)){
-        int i;
-        for(i=0; i< mainSharedVariables->sv_numberOfPlayers; i++) {
-            if (strcmp(playername,mainSharedVariables->sv_player[i]) == 0) {
-                return i;
-            }
-        }
-
-    }
-    return -1;*/
 
     int i;
     int id = -1;
@@ -251,8 +184,8 @@ int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playern
         return id;
 
     // Wait for necessary locks
-    sem_wait(mtxPlayerList);
-    sem_wait(mtxStatusVariables);
+    sem_wait(semPlayerList);
+    sem_wait(semStatusVariables);
 
     for(i = 0; i< mainSharedVariables->sv_numberOfPlayerNames; i++) {
         if (strcmp(playername, &shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]) == 0) {
@@ -261,8 +194,8 @@ int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playern
         }
     }
 
-    sem_post(mtxStatusVariables);
-    sem_post(mtxPlayerList);
+    sem_post(semStatusVariables);
+    sem_post(semPlayerList);
 
     return id;
 }
@@ -273,7 +206,6 @@ _Bool doHELLO(struct sharedVariables *childSharedVariables, struct action* retur
 
     if (returnAction == NULL)
         return FALSE;
-
 
     //TODO check ready parameters
     int successfulSignup = 1;
@@ -312,9 +244,6 @@ _Bool doTAKE(struct sharedVariables *childSharedVariables, int x, int y, char *p
         returnAction->cmd = INUSE;
     }
 
-    //printPlayfield();
-    //printPlayers();
-
     return TRUE;
 
 }
@@ -335,9 +264,9 @@ _Bool doSTATUS(struct sharedVariables *childSharedVariables, int x, int y, struc
     }
     else {
         // Wait for necessary locks
-        sem_wait(mtxPlayerList);
+        sem_wait(semPlayerList);
         strcpy(returnAction->sParam1, &shmPlayerList[clientid*MAX_PLAYER_NAME_LENGTH]);
-        sem_post(mtxPlayerList);
+        sem_post(semPlayerList);
     }
     return TRUE;
 }
@@ -399,25 +328,25 @@ int main(int argc, char *argv[]) {
     }
     FIELDSIZE = atoi(argv[2]);
 
-    // Open shared nemory mutexes
-    // Mutex for status variables
-    if ((mtxStatusVariables = sem_open(SHMMN_STATUS_VARIABLES, O_CREAT, 0666, 1)) == SEM_FAILED) {
+    // Open shared nemory semaphores
+    // semaphore for status variables
+    if ((semStatusVariables = sem_open(SHMSN_STATUS_VARIABLES, O_CREAT, 0666, 1)) == SEM_FAILED) {
         error(SLL_ERROR | SLC_GENERALERRORS,"semaphore initialization");
         return 1;
     }
-    /*DEBUG*/printf("AAA\n");
-    // Mutex for player list
-    if ((mtxPlayerList = sem_open(SHMMN_PLAYER_LIST, O_CREAT, 0600, 1)) == SEM_FAILED) {
-	/*DEBUG*/printf("BBB\n");
+
+    // semaphore for player list
+    if ((semPlayerList = sem_open(SHMSN_PLAYER_LIST, O_CREAT, 0600, 1)) == SEM_FAILED) {
+
         error(SLL_ERROR | SLC_GENERALERRORS,"semaphore initialization");
         return 1;
     }
-    // Mutexes for playfield elementst
+    // semaphores for playfield elementst
     int i;
     char shmmnPlayfieldElementName[256];
     for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
-        sprintf(shmmnPlayfieldElementName, "%s%d", SHMMN_PLAYFIELD_ELEMENT_PREFIX, i);
-        if ((mtxStatusVariables = sem_open(shmmnPlayfieldElementName, O_CREAT, 0666, 1)) == SEM_FAILED) {
+        sprintf(shmmnPlayfieldElementName, "%s%d", SHMSN_PLAYFIELD_ELEMENT_PREFIX, i);
+        if ((semStatusVariables = sem_open(shmmnPlayfieldElementName, O_CREAT, 0666, 1)) == SEM_FAILED) {
             error(SLL_ERROR | SLC_GENERALERRORS,"semaphore initialization");
             return 1;
         }
@@ -694,7 +623,7 @@ int main(int argc, char *argv[]) {
 
 
             printPlayers(mainSharedVariables, logstring);
-            //TODO printPlayfield(mainSharedVariables);
+            printPlayfield(mainSharedVariables);
 
             sleep(2);
 

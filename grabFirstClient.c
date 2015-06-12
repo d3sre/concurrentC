@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include "grabProtocolTranslator.h"
+#include "SimpleLogger.h"
 
 
 /*
@@ -47,7 +48,7 @@ void cleanUpClient(int sockfd) {
 
 _Bool doSIZE(int playfieldN){
     int x;
-    printf("SIZE received\n");
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Size received\n");
 
     // 4 as this is the minimum size
     if (playfieldN < 4){
@@ -67,7 +68,7 @@ _Bool doSIZE(int playfieldN){
 }
 
 _Bool doSTART(struct action* returnAction){
-    printf("START received\n");
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Start received\n");
 
     if (returnAction == NULL) {
         return FALSE;
@@ -135,11 +136,11 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
 
     if (clientStrategy ==2){
         int counter = lastTriedFieldY*n+lastTriedFieldX;
-        printf("last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
         counter++;
         nextTriedFieldY = counter/n;
         nextTriedFieldX = counter%n;
-        printf("next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
 
     }
 
@@ -169,9 +170,12 @@ int main(int argc, char *argv[])
         fprintf(stderr,"usage %s hostname port\n", argv[0]);
         exit(0);
     }
+    char childLogTag[256];
+    sprintf(childLogTag, "CHILD:%d", getpid());
+    startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
 
     //define client player name
-    printf("Please define Player Name: \n");
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Please define Player Name: \n");
     //clean buffer
     bzero(buffer, 256);
     //gets string from stream stdin, terminated with newline \n
@@ -194,7 +198,7 @@ int main(int argc, char *argv[])
     //define servername from start parameter by host database lookup
     server = gethostbyname(argv[1]);
     if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
+        error("ERROR, no such host\n");
         exit(0);
     }
     //set bites to zero
@@ -207,11 +211,11 @@ int main(int argc, char *argv[])
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
         error("ERROR connecting\n");
-    printf("%10s: Connected to server\n", CLIENTNAME);
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "%10s: Connected to server\n", CLIENTNAME);
 
-    printf("Please select the strategy ID: \n");
-    printf("1: simple from 0/0 to n/n \n");
-    printf("2: not implemented yet\n");
+    log_printf(SLL_INFO | SLC_GAMEPLAY, "Please select the strategy ID: \n");
+    log_printf(SLL_INFO | SLC_GAMEPLAY, "1: simple from 0/0 to n/n \n");
+    log_printf(SLL_INFO | SLC_GAMEPLAY, "2: simple quick\n");
     //clean buffer
     bzero(buffer, 256);
     //gets string from stream stdin, terminated with newline \n
@@ -251,7 +255,7 @@ int main(int argc, char *argv[])
             //print buffer, terminated by newline \n
 
             decode(buffer, &currentAction);
-            printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, Client Buffer decoded: %s\n", buffer);
+            log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Client Buffer decoded: %s\n", buffer);
 
             //possible receiving commands
             switch (currentAction.cmd) {
@@ -269,11 +273,11 @@ int main(int argc, char *argv[])
                     updatePlayfield(&currentAction, &returnAction);
                     break;
                 case END:
-                    printf("Winner was: %s, game has ended\n", currentAction.sParam1);
+                    log_printf(SLL_INFO | SLC_GAMEPLAY, "Winner was: %s, game has ended\n", currentAction.sParam1);
                     cleanUpClient(sockfd);
                     continue;
                 default:
-                    printf("Assuming player name was received ...: %s\n", currentAction.sParam1);
+                    log_printf(SLL_INFO | SLC_GAMEPLAY, "Assuming player name was received ...: %s\n", currentAction.sParam1);;
                     continue;
 
             }
