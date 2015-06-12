@@ -51,15 +51,6 @@ sem_t* mtxStatusVariables;
 sem_t *mtxPlayerList;
 sem_t** mtxPlayfieldElement;
 
-
-
-//shared memory definition, source from http://www.lainoox.com/ipc-shared-memory-c/
-
-char c, tmp;
-int sharedMemID, sharedMemSize;
-key_t sharedMemKey;
-char *sharedMemory, *sharedMemS;
-
 // Shared memory for player list (assumed: max. 256 clients, max. name 255 chars)
 int shmPlayerListID;
 int shmPlayerListMemSize;
@@ -72,7 +63,6 @@ int** playfield;
 
 char** player;
 int numberPlayers;
-int *numberOfSockets;
 
 enum processType {gameplay , sockethandler, childinteraction};
 
@@ -370,7 +360,7 @@ _Bool doSTART(struct sharedVariables *childSharedVariables, struct action* retur
     //create segment & set permissions
     while(TRUE) {
         if (childSharedVariables->sv_gameLevel != 2) {
-            log_printf(SLL_INFO | SLC_CHILDINTERACTION, "Game is not yet started\n");
+            log_printf(SLL_IDLE | SLC_CHILDINTERACTION, "Game is not yet started\n");
         }
         else {
             //start the game
@@ -436,20 +426,6 @@ int main(int argc, char *argv[]) {
     //shared memory definition, source from http://www.lainoox.com/ipc-shared-memory-c/
 
     log_printf(SLL_WARNING | SLC_GENERALERRORS, "Step - 1-\n");
-    sharedMemKey = 1234; //like example from website
-    sharedMemSize = 1024; //like example from website
-    //create segment & set permissions
-    if ((sharedMemID = shmget(sharedMemKey, sharedMemSize, IPC_CREAT | 0666)) < 0) {
-        error(SLL_ERROR | SLC_GENERALERRORS, "ERROR when trying to create shared memory\n");
-        return 1;
-    }
-    //attach segment to data space
-    if ((numberOfSockets = (int *) shmat(sharedMemID, NULL, 0)) == (int *)-1) {
-        error(SLL_ERROR | SLC_GENERALERRORS, "ERROR when trying to attach segment to data space \n");
-        return 1;
-    }
-
-    memset(numberOfSockets,0,sharedMemSize);
 
     sharedMemSizeStruct = 1024; //like example from website
     //create segment & set permissions
@@ -475,23 +451,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     memset(shmPlayerList, 0, shmPlayerListMemSize);
-
-    //    if ((*mainSharedVariables == ) {
-//        error("SLL_ERROR | SLC_CAT6_GENERALERRORS, ERROR when trying to attach segment to data space \n");
-//        return 1;
-//    }
-    //memset(numberOfSockets,0,sharedMemSizeStruct);
-//    if ((sharedMemory = shmat(sharedMemID, NULL,0)) == (char *) -1){
-//        error("ERROR when trying to attach segment to data space \n");
-//        return 1;
-//    }
-    //zero out memory segment
-    //memset(sharedMemory,0,sharedMemSize);
-//    memset(sharedMemory,0,sharedMemSize);
-//    sharedMemS = sharedMemory;
-
-    //strncpy(sharedMemory, numberOfSockets, sharedMemSize);
-
 
     log_printf(SLL_WARNING | SLC_GENERALERRORS, "Step - 3-\n");
 
@@ -615,7 +574,7 @@ int main(int argc, char *argv[]) {
 
                     char childLogTag[256];
                     sprintf(childLogTag, "CHILDINTERACTION:%d", currentChildPID);
-                    startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLC_CHILDINTERACTION|SLC_SOCKETCOMMUNICATION|SLC_PROCESSDISPATCHING, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+                    startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLC_ALL_CATEGORIES | SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
 
                     // Get access to Player List in shared memory
                     // get segment & set permissions
@@ -632,18 +591,6 @@ int main(int argc, char *argv[]) {
                     isChild = TRUE;
                     log_printf(SLL_INFO|SLC_PROCESSDISPATCHING, "ChildinteractionPID: %d, Mode: %d, New Child PID is %d with parent %d\n", currentChildPID, currentProcessType, currentChildPID, parentPID);
 
-
-                    // get segment & set permissions
-                    if ((sharedMemID = shmget(sharedMemKey, sharedMemSize, 0666)) < 0) {
-                        error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR when trying to create shared memory\n");
-                        return 1;
-                    }
-                    //attach segment to data space
-                    if ((numberOfSockets = (int *)shmat(sharedMemID, NULL, 0)) == (int *)-1) {
-                        error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR when trying to attach segment to data space \n");
-                        return 1;
-                    }
-
                     //create segment & set permissions
                     if ((sharedMemIDStruct = shmget(SHMK_STATUS_VARIABLES, sharedMemSizeStruct, 0666)) < 0) {
                         error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR when trying to create shared memory\n");
@@ -653,7 +600,6 @@ int main(int argc, char *argv[]) {
                     struct sharedVariables *socketSharedVariables = (struct sharedVariables *) shmat(sharedMemIDStruct, NULL, 0);
 
                     socketSharedVariables->sv_numberOfPlayers++;
-                    (*numberOfSockets)++;
                     log_printf(SLL_INFO|SLC_PROCESSDISPATCHING, "ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
 
                     currentProcessType = childinteraction;
@@ -726,8 +672,6 @@ int main(int argc, char *argv[]) {
 
                 log_printf(SLL_INFO|SLC_CHILDINTERACTION, "ChildinteractionPID:%d Mode : %d] Message received: %s\n", currentChildPID, currentProcessType, buffer);
 
-                //printf("Here is the message: %s\n", buffer);
-
                 // change struct to string
                 encode(&returnAction, replyMessage);
 
@@ -774,7 +718,7 @@ int main(int argc, char *argv[]) {
 
     shmdt(mainSharedVariables);
 
-    shmctl(sharedMemID, IPC_RMID, NULL);
+    shmctl(sharedMemIDStruct, IPC_RMID, NULL);
 
     return 0;
 }
