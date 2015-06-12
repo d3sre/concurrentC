@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "grabProtocolTranslator.h"
-
+#include "SimpleLogger.h"
 
 void decode(const char* cmd, struct action* a) {
     //printf("entered parser");
@@ -112,45 +112,45 @@ void decode(const char* cmd, struct action* a) {
 
 
     //printf("\n");
-    printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, DECODE: ");
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "DECODE: \n");
     switch (a->cmd) {
         case HELLO:
-            printf("- Cmd: HELLO");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: HELLO\n");
             break;
         case SIZE:
-            printf("- Cmd: SIZE");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: SIZE\n");
             break;
         case NACK:
-            printf("- Cmd: NACK");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: NACK\n");
             break;
         case TAKEN:
-            printf("- Cmd: TAKEN");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: TAKEN\n");
             break;
         case INUSE:
-            printf("- Cmd: INUSE");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: INUSE\n");
             break;
         case PLAYERNAME:
-            printf("- Cmd: PLAYERNAME");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: PLAYERNAME\n");
             break;
         case START:
-            printf("- Cmd: START");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: START\n");
             break;
         case END:
-            printf("- Cmd: END");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: END\n");
             break;
         case TAKE:
-            printf("- Cmd: TAKE");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: TAKE\n");
             break;
         case STATUS:
-            printf("- Cmd: STATUS");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: STATUS\n");
             break;
         default:
-            printf("- Cmd: ERROR");
+            log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - Cmd: ERROR\n");
             break;
     }
-    printf(" - iParam1: %d", a->iParam1);
-    printf(" - iParam2: %d", a->iParam2);
-    printf(" - sParam1: %s\n", a->sParam1);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - iParam1: %d", a->iParam1);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - iParam2: %d", a->iParam2);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, " - sParam1: %s\n", a->sParam1);
 }
 
 void encode(struct action* a, char* returnMessage) {
@@ -191,6 +191,6 @@ void encode(struct action* a, char* returnMessage) {
     }
 
     //printf("\n");
-    printf("SLL_INFO | SLC_CAT4_SOCKETCOMMUNICATION, ENCODE: ");
-    printf("- String: %s\n", returnMessage);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, "ENCODE:\n");
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, "- String: %s\n", returnMessage);
 }
