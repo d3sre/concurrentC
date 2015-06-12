@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.1)
-project(grabFirst)
+project(grabFirstServer)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c11")
+add_definitions(-lpthread)
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lpthread")
 
-set(SOURCE_FILES main.c)
-add_executable(grabFirst ${SOURCE_FILES} grabFirstClient.h grabFirstClient.c grabFirstServer.h grabFirstServer.c grabProtocoll.h grabProtocoll.c grabProtocolTranslator.h grabProtocolTranslator.c)
+set(SOURCE_FILES grabFirstServer.c)
+add_executable(grabFirstServer ${SOURCE_FILES} grabProtocolTranslator.h grabProtocolTranslator.c SimpleLogger.c SimpleLogger.h)
