@@ -574,7 +574,7 @@ int main(int argc, char *argv[]) {
 
                     char childLogTag[256];
                     sprintf(childLogTag, "CHILDINTERACTION:%d", currentChildPID);
-                    startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLC_ALL_CATEGORIES | SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+                    startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
 
                     // Get access to Player List in shared memory
                     // get segment & set permissions
