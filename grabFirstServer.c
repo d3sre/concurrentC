@@ -763,6 +763,15 @@ int main(int argc, char *argv[]) {
                 switch (currentAction.cmd) {
                     case HELLO:
                         doHELLO(mainSharedVariables, &returnAction);
+                        // Manually triffer sending the nexcessary SIZE command
+
+                        // change struct to string
+                        encode(&returnAction, replyMessage);
+
+                        //write response to socket
+                        length = write(newsockfd, replyMessage, 18);
+                        if (length < 0) error(SLL_ERROR | SLC_CHILDINTERACTION, "ERROR writing to socket");
+
                         doSTART(mainSharedVariables, &returnAction);
                         break;
                     case TAKE:
@@ -825,9 +834,6 @@ int main(int argc, char *argv[]) {
                 log_printf(SLC_DEBUG, "STATUS A13A\n");
 
                 log_printf(SLL_INFO|SLC_GAMEPLAY, "Game could be started");
-
-                doSTART(mainSharedVariables, &returnAction);
-
             }
             else {
                 log_printf(SLL_INFO | SLC_GAMEPLAY,

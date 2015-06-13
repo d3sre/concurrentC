@@ -32,6 +32,9 @@ int n = 0;
 
 int** playfield;
 int clientStrategy;
+int lastTriedFieldX = 0;
+int lastTriedFieldY = 0;
+
 
 
 
@@ -49,6 +52,7 @@ void cleanUpClient(int sockfd) {
 _Bool doSIZE(int playfieldN){
     int x;
     log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Size received\n");
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Playfield size: %d\n", playfieldN);
 
     // 4 as this is the minimum size
     if (playfieldN < 4){
@@ -60,7 +64,6 @@ _Bool doSIZE(int playfieldN){
     for (x = 0; x < playfieldN; x++){
         playfield[x] = malloc(playfieldN*sizeof(int));
     }
-
 
     n = playfieldN;
 
@@ -95,9 +98,6 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
         return FALSE;
     }
 
-    int lastTriedFieldX = currentAction->iParam1;
-    int lastTriedFieldY = currentAction->iParam2;
-
     //make internal notes of playfield state
     if (returnAction->cmd == TAKEN){
         //mark field as taken
@@ -112,7 +112,7 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
     //strategy 1 implementation
     if(clientStrategy == 1){
         //define next X field
-        if (lastTriedFieldX < n) {
+        if (lastTriedFieldX < n-1) {
             nextTriedFieldX = lastTriedFieldX+1;
             moveMade = TRUE;
         }
@@ -121,7 +121,7 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
         }
         //define next Y field
         if (moveMade == FALSE){
-            if (lastTriedFieldY < n) {
+            if (lastTriedFieldY < n-1) {
                 nextTriedFieldY = lastTriedFieldY+1;
             }
             else {
@@ -138,18 +138,21 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
         int counter = lastTriedFieldY*n+lastTriedFieldX;
         log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
         counter++;
+        if (counter > n*n-1)
+            counter = 0;
         nextTriedFieldY = counter/n;
         nextTriedFieldX = counter%n;
         log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
 
     }
 
-
     returnAction->cmd = TAKE;
     returnAction->iParam1 = nextTriedFieldX;
     returnAction->iParam2 = nextTriedFieldY;
     strcpy(returnAction->sParam1,CLIENTNAME);
 
+    lastTriedFieldX = nextTriedFieldX;
+    lastTriedFieldY = nextTriedFieldY;
 
     return TRUE;
 
