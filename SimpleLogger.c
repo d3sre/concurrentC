@@ -25,6 +25,7 @@ const int SLC_SOCKETHANDLER = 1 << 10;
 const int SLC_SOCKETCOMMUNICATION = 1 << 11;
 const int SLC_PROCESSDISPATCHING = 1 << 12;
 const int SLC_GENERALERRORS = 1 << 13;
+const int SLC_DEBUG = 1 << 14;
 const int SLC_ALL_CATEGORIES = 4294967040; // Default
 
 
@@ -184,6 +185,7 @@ void log_printf(int mask_flag, const char *text, ...)
 	if (!g_logger_initialized)
 	{
 		printf("[WARNING] Logger not yet initialized!\n");
+		printf("[WARNING] Text to be logged: %s\n", text);
 		return;
 	}
 

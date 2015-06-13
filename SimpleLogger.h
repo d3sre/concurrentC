@@ -22,6 +22,7 @@ extern const int SLC_SOCKETHANDLER;
 extern const int SLC_SOCKETCOMMUNICATION;
 extern const int SLC_PROCESSDISPATCHING;
 extern const int SLC_GENERALERRORS;
+extern const int SLC_DEBUG;
 extern const int SLC_ALL_CATEGORIES; // Default
 
 

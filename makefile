@@ -20,7 +20,7 @@ client: $(OBJECTS_CLIENT)
 	$(CC) $(CFLAGS) -c $<
 
 .PHONY: clean
-clean: clean-server clean-client
+clean: clean-server clean-client clean-logs
 
 .PHONY: clean-server
 clean-server:
@@ -29,3 +29,7 @@ clean-server:
 .PHONY: clean-client
 clean-client:
 	rm -rf $(EXECUTABLE_CLIENT) $(OBJECTS_CLIENT)
+
+.PHONY: clean-logs
+clean-logs:
+	rm -rf *.log
