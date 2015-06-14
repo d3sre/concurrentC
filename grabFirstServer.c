@@ -245,11 +245,13 @@ void addPlayer(struct sharedVariables *mainSharedVariables, const char* playerna
     sem_wait(semPlayerList);
     log_printf(SLC_DEBUG, "STATUS B4\n");
     sem_wait(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
 
     strcpy(&shmPlayerList[mainSharedVariables->sv_numberOfPlayerNames*MAX_PLAYER_NAME_LENGTH], playername);
     mainSharedVariables->sv_numberOfPlayerNames++;
 
     sem_post(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
     log_printf(SLC_DEBUG, "STATUS A4\n");
     sem_post(semPlayerList);
     log_printf(SLC_DEBUG, "PLAYERLIST A2\n");
@@ -266,15 +268,22 @@ _Bool existPlayer(struct sharedVariables *mainSharedVariables, const char* playe
     sem_wait(semPlayerList);
     log_printf(SLC_DEBUG, "STATUS B5\n");
     sem_wait(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Number Players: %d\n", mainSharedVariables->sv_numberOfPlayerNames);
 
     for (i = 0; i < mainSharedVariables->sv_numberOfPlayerNames; i++) {
+        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "in FOR loop at ID: %d\n", i);
         if (strcmp(playername, &shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]) == 0) {
             result = TRUE;
+            log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Player found at ID %d\n", i);
             break;
         }
     }
 
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "After FOR loop\n");
+
     sem_post(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
     log_printf(SLC_DEBUG, "STATUS A5\n");
     sem_post(semPlayerList);
     log_printf(SLC_DEBUG, "PLAYERLIST A3\n");
@@ -296,6 +305,7 @@ int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playern
     sem_wait(semPlayerList);
     log_printf(SLC_DEBUG, "STATUS B6\n");
     sem_wait(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
 
     for(i = 0; i< mainSharedVariables->sv_numberOfPlayerNames; i++) {
         if (strcmp(playername, &shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]) == 0) {
@@ -305,6 +315,7 @@ int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playern
     }
 
     sem_post(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
     log_printf(SLC_DEBUG, "STATUS A6\n");
     sem_post(semPlayerList);
     log_printf(SLC_DEBUG, "PLAYERLIST A4\n");
@@ -345,8 +356,11 @@ _Bool doTAKE(struct sharedVariables *mainSharedVariables, int x, int y, char *pl
 
     int index = y*FIELDSIZE+x;
 
-    if (!existPlayer(mainSharedVariables,playerName))
+    log_printf(SLC_DEBUG_SEM_STATUS, "Before existPlayer\n");
+    if (!existPlayer(mainSharedVariables,playerName)) {
+        log_printf(SLC_DEBUG_SEM_STATUS, "Before addPlayer\n");
         addPlayer(mainSharedVariables, playerName);
+    }
 
     if (sem_trywait(semPlayfieldElement[index])== 0) {
         shmPlayfield[index] = getPlayerID(mainSharedVariables,playerName);
@@ -400,8 +414,10 @@ _Bool doEND(struct sharedVariables *mainSharedVariables, char *playerName, struc
         return FALSE;
     log_printf(SLC_DEBUG, "STATUS B10\n");
     sem_wait(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
     mainSharedVariables->sv_gameLevel = 0;
     sem_post(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
     log_printf(SLC_DEBUG, "STATUS A10\n");
     gameon = 0;
     returnAction->cmd = END;
@@ -415,6 +431,7 @@ _Bool doSTART(struct sharedVariables *mainSharedVariables, struct action* return
     while(TRUE) {
         log_printf(SLC_DEBUG, "STATUS B11\n");
         sem_wait(semStatusVariables);
+        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
         if (mainSharedVariables->sv_gameLevel != 2) {
             log_printf(SLL_IDLE | SLC_CHILDINTERACTION, "Game is not yet started\n");
         }
@@ -427,10 +444,12 @@ _Bool doSTART(struct sharedVariables *mainSharedVariables, struct action* return
 
             returnAction->cmd = START;
             sem_post(semStatusVariables);
+            log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
             log_printf(SLC_DEBUG, "STATUS A11A\n");
             break;
         }
         sem_post(semStatusVariables);
+        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
         log_printf(SLC_DEBUG, "STATUS A11B\n");
     }
     return TRUE;
@@ -499,17 +518,6 @@ int main(int argc, char *argv[]) {
         error(SLL_ERROR | SLC_GENERALERRORS,"semaphore initialization");
         return 1;
     }
-    log_printf(SLC_DEBUG, "-1-\n");
-    sem_wait(semStatusVariables);
-    log_printf(SLC_DEBUG, "-2-\n");
-    sem_post(semStatusVariables);
-    log_printf(SLC_DEBUG, "-3-\n");
-    log_printf(SLC_DEBUG, "-1a-\n");
-    sem_wait(semStatusVariables);
-    log_printf(SLC_DEBUG, "-2a-\n");
-    sem_post(semStatusVariables);
-    log_printf(SLC_DEBUG, "-3a-\n");
-
 
     // semaphore for player list
     if ((semPlayerList = sem_open(SHMSN_PLAYER_LIST, O_CREAT, 0600, 1)) == SEM_FAILED) {
@@ -609,14 +617,6 @@ int main(int argc, char *argv[]) {
     _Bool isChild = FALSE;
 
 
-    log_printf(SLC_DEBUG, "-4-\n");
-    sem_wait(semStatusVariables);
-    log_printf(SLC_DEBUG, "-5-\n");
-    sem_post(semStatusVariables);
-    log_printf(SLC_DEBUG, "-6-\n");
-
-
-
     masterpid = fork();
     if (masterpid < 0)
         error(SLL_ERROR | SLC_GENERALERRORS, "error on master fork");
@@ -649,13 +649,6 @@ int main(int argc, char *argv[]) {
     if (masterpid > 0) {
         //still in master PID
         currentProcessType = gameplay;
-
-        log_printf(SLC_DEBUG, "-7-\n");
-        sem_wait(semStatusVariables);
-        log_printf(SLC_DEBUG, "-8-\n");
-        sem_post(semStatusVariables);
-        log_printf(SLC_DEBUG, "-9-\n");
-
     }
 
     //### section: receiving input from client ###
@@ -664,8 +657,10 @@ int main(int argc, char *argv[]) {
 
     log_printf(SLC_DEBUG, "STATUS B14A\n");
     sem_wait(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
     while ((mainSharedVariables->sv_gameLevel >= 1) && (keepRunning == 1)) {
         sem_post(semStatusVariables);
+        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
         log_printf(SLC_DEBUG, "STATUS A14A\n");
 
         //printf("I'm in the loop %d\n", getpid());
@@ -712,8 +707,10 @@ int main(int argc, char *argv[]) {
                         error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR when trying to create shared memory\n");
                         log_printf(SLC_DEBUG, "STATUS B15\n");
                         sem_wait(semStatusVariables);
+                        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
                         mainSharedVariables->sv_gameLevel = 0;
                         sem_post(semStatusVariables);
+                        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
                         log_printf(SLC_DEBUG, "STATUS A15\n");
                         break;
                     }
@@ -722,8 +719,10 @@ int main(int argc, char *argv[]) {
                         error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR when trying to attach segment to data space \n");
                         log_printf(SLC_DEBUG, "STATUS B16\n");
                         sem_wait(semStatusVariables);
+                        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
                         mainSharedVariables->sv_gameLevel = 0;
                         sem_post(semStatusVariables);
+                        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
                         log_printf(SLC_DEBUG, "STATUS A16\n");
                         break;
                     }
@@ -736,8 +735,10 @@ int main(int argc, char *argv[]) {
                         error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR when trying to create shared memory\n");
                         log_printf(SLC_DEBUG, "STATUS B17\n");
                         sem_wait(semStatusVariables);
+                        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
                         mainSharedVariables->sv_gameLevel = 0;
                         sem_post(semStatusVariables);
+                        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
                         log_printf(SLC_DEBUG, "STATUS A17\n");
                         break;
                     }
@@ -745,9 +746,11 @@ int main(int argc, char *argv[]) {
                     mainSharedVariables = (struct sharedVariables *) shmat(sharedMemIDStruct, NULL, 0);
                     log_printf(SLC_DEBUG, "STATUS B12\n");
                     sem_wait(semStatusVariables);
+                    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
                     mainSharedVariables->sv_numberOfPlayers++;
                     log_printf(SLL_INFO|SLC_PROCESSDISPATCHING, "ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
                     sem_post(semStatusVariables);
+                    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
                     log_printf(SLC_DEBUG, "STATUS A12\n");
                     currentProcessType = childinteraction;
 
@@ -767,18 +770,20 @@ int main(int argc, char *argv[]) {
         if (currentProcessType == childinteraction){
             pid_t currentChildPID = getpid();
 
-            //create segment & set permissions
+            /*//create segment & set permissions
             if ((sharedMemIDStruct = shmget(SHMK_STATUS_VARIABLES, sharedMemSizeStruct, 0666)) < 0) {
                 error(SLL_ERROR | SLC_CHILDINTERACTION, "ERROR when trying to create shared memory\n");
                 log_printf(SLC_DEBUG, "STATUS B18\n");
                 sem_wait(semStatusVariables);
+                log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
                 mainSharedVariables->sv_gameLevel = 0;
                 sem_post(semStatusVariables);
+                log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
                 log_printf(SLC_DEBUG, "STATUS A18\n");
                 break;
             }
             //attach segment to data space
-            mainSharedVariables = (struct sharedVariables *) shmat(sharedMemIDStruct, NULL, 0);
+            mainSharedVariables = (struct sharedVariables *) shmat(sharedMemIDStruct, NULL, 0);*/
 
             //printf("[ChildinteractionPID:%d Mode : %d] Entered Child interaction loop part\n", currentChildPID, currentProcessType);
 
@@ -864,9 +869,11 @@ int main(int argc, char *argv[]) {
 
             log_printf(SLC_DEBUG, "STATUS B13\n");
             sem_wait(semStatusVariables);
+            log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
             if (mainSharedVariables->sv_numberOfPlayers >= (FIELDSIZE/2) && mainSharedVariables->sv_gameLevel == 1){
                 mainSharedVariables->sv_gameLevel=2;
                 sem_post(semStatusVariables);
+                log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
                 log_printf(SLC_DEBUG, "STATUS A13A\n");
 
                 log_printf(SLL_INFO|SLC_GAMEPLAY, "Game could be started");
@@ -876,14 +883,17 @@ int main(int argc, char *argv[]) {
                    mainSharedVariables->sv_gameLevel, FIELDSIZE,
                    mainSharedVariables->sv_numberOfPlayers, mainSharedVariables->sv_numberOfPlayerNames);
                 sem_post(semStatusVariables);
+                log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
                 log_printf(SLC_DEBUG, "STATUS A13B\n");
             }
             //3. are we done yet
         }
         log_printf(SLC_DEBUG, "STATUS B14B\n");
         sem_wait(semStatusVariables);
+        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
     }
     sem_post(semStatusVariables);
+    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
     log_printf(SLC_DEBUG, "STATUS A14B\n");
 
 
@@ -891,8 +901,10 @@ int main(int argc, char *argv[]) {
         // tell all forks to exit loop
         log_printf(SLC_DEBUG, "STATUS B19\n");
         sem_wait(semStatusVariables);
+        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables LOCKED\n");
         mainSharedVariables->sv_gameLevel = 0;
         sem_post(semStatusVariables);
+        log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
         log_printf(SLC_DEBUG, "STATUS A19\n");
 
         pid_t child_pid, wpid;

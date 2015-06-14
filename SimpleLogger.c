@@ -27,6 +27,7 @@ const int SLC_PROCESSDISPATCHING = 1 << 12;
 const int SLC_GENERALERRORS = 1 << 13;
 const int SLC_DEBUG = 1 << 14;
 const int SLC_RELEASE = 1 << 15;
+const int SLC_DEBUG_SEM_STATUS = 1 << 14;
 const int SLC_ALL_CATEGORIES = 4294967040; // Default
 
 

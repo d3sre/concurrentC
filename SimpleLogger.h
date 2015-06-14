@@ -24,6 +24,7 @@ extern const int SLC_PROCESSDISPATCHING;
 extern const int SLC_GENERALERRORS;
 extern const int SLC_DEBUG;
 extern const int SLC_RELEASE;
+extern const int SLC_DEBUG_SEM_STATUS;
 extern const int SLC_ALL_CATEGORIES; // Default
 
 
