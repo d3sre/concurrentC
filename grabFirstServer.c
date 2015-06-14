@@ -46,7 +46,7 @@ const char* SHMSN_PLAYFIELD_ELEMENT_PREFIX = "/PLAYFIELDELEMENT";
 // Shared memory keys
 #define SHMK_STATUS_VARIABLES 1000
 #define SHMK_PLAYER_LIST 2000
-#define SHMK_PLAYFIELD_ROOT 3000
+#define SHMK_PLAYFIELD 3000
 
 // Shared memory semaphores
 sem_t* semStatusVariables;
@@ -57,11 +57,14 @@ sem_t** semPlayfieldElement;
 int shmPlayerListID;
 int shmPlayerListMemSize;
 char* shmPlayerList;
+int* shmPlayfield;
+int shmPlayfieldMemSize;
+int shmPlayfieldID;
 
 int sharedMemIDStruct, sharedMemSizeStruct;
 
 //int n = 0;
-int** playfield;
+//int** playfield;
 
 enum processType {gameplay , sockethandler, childinteraction};
 
@@ -121,17 +124,30 @@ void printPlayfield(struct sharedVariables *mainSharedVariables){
     int y;
     log_printf(SLC_DEBUG, "STATUS B2\n");
     sem_wait(semStatusVariables);
+    // Lock all semaphores for playfield elementst
+    int i;
+    for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
+        sem_wait(semPlayfieldElement[i]);
+    }
+
+    int index;
+
     for(y=0; y<(mainSharedVariables->sv_playfieldSideLength);y++){
         for(x=0; x< (mainSharedVariables->sv_playfieldSideLength); x++) {
-            if(playfield[x][y] == -1) {
+            index = mainSharedVariables->sv_playfieldSideLength*y+x;
+            if(shmPlayfield[index] == -1) {
                 printf("-");
             }
             else {
-                printf("%d",playfield[x][y]);
+                printf("%d",shmPlayfield[index]);
             }
 
         }
         printf("\n");
+    }
+    //unlock all playfield element semaphores
+    for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
+        sem_post(semPlayfieldElement[i]);
     }
     sem_post(semStatusVariables);
     log_printf(SLC_DEBUG, "STATUS A2\n");
@@ -167,6 +183,11 @@ void cleanUpGameplay(struct sharedVariables *mainSharedVariables, int socket) {
     shmdt(shmPlayerList);
     shmPlayerList = NULL;
     shmctl(shmPlayerListID, IPC_RMID, NULL);
+
+    // Cleanup playfield in shared memory
+    shmdt(shmPlayfield);
+    shmPlayfield = NULL;
+    shmctl(shmPlayfieldID, IPC_RMID, NULL);
 
     log_printf(SLC_DEBUG, "CLEANUP GAMEPLAY 7\n");
     shmdt(mainSharedVariables);
@@ -322,15 +343,17 @@ _Bool doTAKE(struct sharedVariables *mainSharedVariables, int x, int y, char *pl
     if (x< 0 || x>=FIELDSIZE || y<0 || y>= FIELDSIZE || playerName == NULL || returnAction == NULL)
         return FALSE;
 
-    //TODO program checks if field is in use
-    int successfulTake = 1;
+    sem_wait(semStatusVariables);
+    int index = y*mainSharedVariables->sv_playfieldSideLength+x;
+    sem_post(semStatusVariables);
+
 
     if (!existPlayer(mainSharedVariables,playerName))
         addPlayer(mainSharedVariables, playerName);
 
-    if (successfulTake) {
-        playfield[x][y] = getPlayerID(mainSharedVariables,playerName);
-
+    if (sem_trywait(semPlayfieldElement[index])== 0) {
+        shmPlayfield[index] = getPlayerID(mainSharedVariables,playerName);
+        sem_post(semPlayfieldElement[index]);
 
         returnAction->cmd = TAKEN;
 
@@ -355,9 +378,13 @@ _Bool doSTATUS(struct sharedVariables *mainSharedVariables, int x, int y, struct
     sem_post(semStatusVariables);
     log_printf(SLC_DEBUG, "STATUS A9B\n");
 
-    //TODO check field and return fieldOwner
+    sem_wait(semStatusVariables);
+    int index = y*mainSharedVariables->sv_playfieldSideLength+x;
+    sem_post(semStatusVariables);
 
-    int clientid = playfield[x][y];
+    sem_wait(semPlayfieldElement[index]);
+    int clientid = shmPlayfield[index];
+    sem_post(semPlayfieldElement[index]);
 
     returnAction->cmd = PLAYERNAME;
     if (clientid == -1){
@@ -471,9 +498,6 @@ int main(int argc, char *argv[]) {
     log_printf(SLC_DEBUG, "-3a-\n");
 
 
-
-
-
     // semaphore for player list
     if ((semPlayerList = sem_open(SHMSN_PLAYER_LIST, O_CREAT, 0666, 1)) == SEM_FAILED) {
 
@@ -485,10 +509,6 @@ int main(int argc, char *argv[]) {
     sem_wait(semPlayerList);
     sem_post(semPlayerList);
     log_printf(SLC_DEBUG, "PLAYERLIST A0\n");
-
-
-
-
 
 
     // semaphores for playfield elementst
@@ -543,19 +563,20 @@ int main(int argc, char *argv[]) {
     mainSharedVariables->sv_numberOfPlayerNames = 0;
     mainSharedVariables->sv_playfieldSideLength=FIELDSIZE;
 
-    int x;
+    // Create Playerfield in shared memory
+    shmPlayfieldMemSize = FIELDSIZE*FIELDSIZE*sizeof(int);
+    // Create segment & set permissions
+    if ((shmPlayerListID = shmget(SHMK_PLAYFIELD, shmPlayfieldMemSize, IPC_CREAT | 0666)) < 0) {
+        error(SLL_ERROR | SLC_GENERALERRORS, "ERROR when trying to create shared memory for playfield\n");
+        return 1;
+    }
+    // Attach segment to data space
+    if ((shmPlayfield = (int*)shmat(shmPlayfieldID, NULL, 0)) == (int*)-1) {
+        error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR when trying to attach segment to data space for playfield\n");
+        return 1;
+    }
+    memset(shmPlayfield, -1, shmPlayfieldMemSize);
 
-    //create playfield with n-size
-    playfield = malloc(FIELDSIZE*sizeof(int*));
-    for (x = 0; x < FIELDSIZE; x++){
-        playfield[x] = malloc(FIELDSIZE*sizeof(int));
-    }
-    int y;
-    for(x= 0; x < FIELDSIZE; x++){
-        for(y = 0; y < FIELDSIZE; y++){
-            playfield[x][y] = -1;
-        }
-    }
 
     // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -836,10 +857,9 @@ int main(int argc, char *argv[]) {
                 log_printf(SLL_INFO|SLC_GAMEPLAY, "Game could be started");
             }
             else {
-                log_printf(SLL_INFO | SLC_GAMEPLAY,
-                           "Current Shared Memory: GameLevel: %d, Fieldsize: %d, NumberOfPlayers: %d, NumberOfPlayerNames: %d\n",
-                           mainSharedVariables->sv_gameLevel, mainSharedVariables->sv_playfieldSideLength,
-                           mainSharedVariables->sv_numberOfPlayers, mainSharedVariables->sv_numberOfPlayerNames);
+                log_printf(SLL_INFO | SLC_GAMEPLAY, "Current Shared Memory: GameLevel: %d, Fieldsize: %d, NumberOfPlayers: %d, NumberOfPlayerNames: %d\n",
+                   mainSharedVariables->sv_gameLevel, mainSharedVariables->sv_playfieldSideLength,
+                   mainSharedVariables->sv_numberOfPlayers, mainSharedVariables->sv_numberOfPlayerNames);
                 sem_post(semStatusVariables);
                 log_printf(SLC_DEBUG, "STATUS A13B\n");
             }
