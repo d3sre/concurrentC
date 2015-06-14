@@ -100,14 +100,24 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
     }
 
     //make internal notes of playfield state
-    if (returnAction->cmd == TAKEN){
+    if (currentAction->cmd == TAKEN){
         //mark field as taken
         playfield[lastTriedFieldX][lastTriedFieldY] = 1;
     }
-    else if (returnAction->cmd == INUSE) {
+    else if (currentAction->cmd == INUSE) {
         // other user currently accessing
         //mark field as other user
         playfield[lastTriedFieldX][lastTriedFieldY] = 2;
+    }
+    else if (currentAction->cmd == PLAYERNAME) {
+        // other user currently accessing
+        //mark field as other user
+        if (strcmp(currentAction->sParam1,CLIENTNAME) == 0)
+            playfield[lastTriedFieldX][lastTriedFieldY] = 1;
+        else if (strcmp(currentAction->sParam1,"-") == 0)
+            playfield[lastTriedFieldX][lastTriedFieldY] = 0;
+        else
+            playfield[lastTriedFieldX][lastTriedFieldY] = 2;
     }
 
     //strategy 1 implementation
@@ -157,17 +167,20 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
         nextTriedFieldY = rand()%n;
     }
 
-    if (clientStrategy !=4) {
+    if (clientStrategy < 4) {
         returnAction->cmd = TAKE;
         returnAction->iParam1 = nextTriedFieldX;
         returnAction->iParam2 = nextTriedFieldY;
         strcpy(returnAction->sParam1,CLIENTNAME);
     }
-    else{
+    else if (clientStrategy == 4) {
         returnAction->cmd = STATUS;
         returnAction->iParam1 = nextTriedFieldX;
         returnAction->iParam2 = nextTriedFieldY;
         strcpy(returnAction->sParam1,"");
+    }
+    else {
+        sleep(1);
     }
 
 
@@ -220,7 +233,8 @@ int main(int argc, char *argv[])
         log_printf(SLL_INFO | SLC_GAMEPLAY, "1: simple from 0/0 to n/n \n");
         log_printf(SLL_INFO | SLC_GAMEPLAY, "2: simple quick\n");
         log_printf(SLL_INFO | SLC_GAMEPLAY, "3: random\n");
-        log_printf(SLL_INFO | SLC_GAMEPLAY, "4: inactive client (only STATUS check)\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "4: only STATUS check\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "5: inactive client\n");
         //clean buffer
         bzero(buffer, 256);
         //gets string from stream stdin, terminated with newline \n
@@ -245,6 +259,9 @@ int main(int argc, char *argv[])
             break;
         case 4:
             clientStrategy = 4;
+            break;
+        case 5:
+            clientStrategy = 5;
             break;
         default:
             clientStrategy = 1;
@@ -315,6 +332,10 @@ int main(int argc, char *argv[])
                 case INUSE:
                 case TAKEN:
                     updatePlayfield(&currentAction, &returnAction);
+
+                    if (clientStrategy == 5)
+                        continue;
+
                     break;
                 case END:
                     log_printf(SLL_INFO | SLC_GAMEPLAY, "Winner was: %s, game has ended\n", currentAction.sParam1);
@@ -322,7 +343,8 @@ int main(int argc, char *argv[])
                     continue;
                 default:
                     log_printf(SLL_INFO | SLC_GAMEPLAY, "Assuming player name was received ...: %s\n", currentAction.sParam1);;
-                    continue;
+                    updatePlayfield(&currentAction, &returnAction);
+                    break;
 
             }
 
