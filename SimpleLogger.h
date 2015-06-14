@@ -23,12 +23,14 @@ extern const int SLC_SOCKETCOMMUNICATION;
 extern const int SLC_PROCESSDISPATCHING;
 extern const int SLC_GENERALERRORS;
 extern const int SLC_DEBUG;
+extern const int SLC_RELEASE;
 extern const int SLC_ALL_CATEGORIES; // Default
 
 
 void startup_logger(const char *logger_tag, int output_flags, int console_mask_flags, int file_mask_flags);
 void shutdown_logger();
 void log_printf(int mask_flag, const char *pszName, ...);
+void log_appendprintf(int mask_flag, const char *pszName, ...);
 
 
 

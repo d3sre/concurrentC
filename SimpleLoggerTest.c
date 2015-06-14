@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv)
 {
-	//startup_logger("TESTLOG:1\\2/3", SLO_CONSOLE | SLO_FILE, SLL_INFO | SLL_FATAL | SLC_CATEGORY1 | SLC_CATEGORY3, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+	/*//startup_logger("TESTLOG:1\\2/3", SLO_CONSOLE | SLO_FILE, SLL_INFO | SLL_FATAL | SLC_CATEGORY1 | SLC_CATEGORY3, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
 	startup_logger("TESTLOG:1\\2/3", SLO_CONSOLE | SLO_FILE, SLC_CAT1_CHILDINTERACTION, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
 	//startup_logger("TESTLOG:1\\2/3", SLO_CONSOLE | SLO_FILE, SLL_INFO | SLL_FATAL | SLC_CATEGORY1 | SLC_CATEGORY3, SLL_INFO | SLL_FATAL | SLC_CATEGORY1 | SLC_CATEGORY3);
 
@@ -32,6 +32,15 @@ int main(int argc, char **argv)
 	log_printf(SLC_CAT1_CHILDINTERACTION, "Das ist ein log-Eintrag ohne Level der Kategorie 1.\n");
 	log_printf(SLL_INFO | SLC_CAT1_CHILDINTERACTION, "Das ist ein INFO log-Eintrag der Kategorie 1 mit verschiedenen Attributen (%s, %d, %f).\n", "Test String", 15, 27.0);
 
+	shutdown_logger();*/
+
+	startup_logger("TESTLOG:1\\2/3", SLO_CONSOLE | SLO_FILE, SLC_RELEASE, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+	log_printf(SLC_RELEASE, "Line1\n");
+	log_printf(SLC_RELEASE, "Line2\n");
+	log_printf(SLC_RELEASE, "Line3");
+	log_appendprintf(SLC_RELEASE, "...3a");
+	log_appendprintf(SLC_RELEASE, "...3b\n");
+	log_printf(SLC_RELEASE, "Line4\n");
 	shutdown_logger();
 
 	exit(EXIT_SUCCESS);

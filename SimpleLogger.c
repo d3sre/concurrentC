@@ -26,6 +26,7 @@ const int SLC_SOCKETCOMMUNICATION = 1 << 11;
 const int SLC_PROCESSDISPATCHING = 1 << 12;
 const int SLC_GENERALERRORS = 1 << 13;
 const int SLC_DEBUG = 1 << 14;
+const int SLC_RELEASE = 1 << 15;
 const int SLC_ALL_CATEGORIES = 4294967040; // Default
 
 
@@ -171,26 +172,69 @@ void shutdown_logger()
 	g_logger_initialized = FALSE;
 }
 
-void log_printf(int mask_flag, const char *text, ...)
+void do_log_printf(bool append, int mask_flag, const char *arg_buffer, int arg_buffer_length)
 {
-	va_list arg_list;
-	char *arg_buffer;
 	char *output_buffer;
 	char level_buffer[11] = "";
-	int arg_buffer_length;
-	int	number_written;
 	int output_length;
-	bool finished;
 
 	if (!g_logger_initialized)
 	{
 		printf("[WARNING] Logger not yet initialized!\n");
-		printf("[WARNING] Text to be logged: %s\n", text);
+		printf("[WARNING] Text to be logged: %s\n", arg_buffer);
 		return;
 	}
 
 	if (((g_console_mask_flags & mask_flag) || ((g_file_mask_flags & mask_flag))) == FALSE)
 		return;
+
+	if (mask_flag & SLL_FATAL)
+		strncpy(level_buffer, " |   FATAL", 11);
+	if (mask_flag & SLL_ERROR)
+		strncpy(level_buffer, " |   ERROR", 11);
+	if (mask_flag & SLL_WARNING)
+		strncpy(level_buffer, " | WARNING", 11);
+	if (mask_flag & SLL_INFO)
+		strncpy(level_buffer, " |    INFO", 11);
+	if (mask_flag & SLL_IDLE)
+		strncpy(level_buffer, " |    IDLE", 11);
+
+	output_buffer = NULL;
+	output_length = 1 + strnlen(g_logger_tag, LOGGER_TAG_SIZE) + 11 + 2 + strnlen(arg_buffer, arg_buffer_length) + 1;
+
+	output_buffer = (char *)malloc(output_length);
+
+	if (!append)
+		snprintf(output_buffer, output_length, "[%s%s] %s", g_logger_tag, level_buffer, arg_buffer);
+	else
+		snprintf(output_buffer, output_length, "%s", arg_buffer);
+
+	if ((g_output_flags & SLO_CONSOLE) && (g_console_mask_flags & mask_flag))
+		printf("%s", output_buffer);
+	if ((g_output_flags & SLO_FILE) && (g_file_mask_flags & mask_flag))
+	{
+		if (!g_logger_fp)
+		{
+			printf("[FATAL] Logger file not existing!\n");
+			g_logger_initialized = FALSE;
+			return;
+		}
+
+		fprintf(g_logger_fp, "%s", output_buffer);
+
+		fflush(g_logger_fp);
+	}
+}
+
+void log_printf(int mask_flag, const char *text, ...)
+{
+	va_list arg_list;
+	char *arg_buffer;
+	char *output_buffer;
+	int arg_buffer_length;
+	int	number_written;
+	bool finished;
+
 
 	arg_buffer_length = INITIAL_ARG_BUFFER_SIZE;
 	arg_buffer = NULL;
@@ -215,41 +259,52 @@ void log_printf(int mask_flag, const char *text, ...)
 	if (!arg_buffer)
 		return;
 
-	if (mask_flag & SLL_FATAL)
-		strncpy(level_buffer, " |   FATAL", 11);
-	if (mask_flag & SLL_ERROR)
-		strncpy(level_buffer, " |   ERROR", 11);
-	if (mask_flag & SLL_WARNING)
-		strncpy(level_buffer, " | WARNING", 11);
-	if (mask_flag & SLL_INFO)
-		strncpy(level_buffer, " |    INFO", 11);
-	if (mask_flag & SLL_IDLE)
-		strncpy(level_buffer, " |    IDLE", 11);
-
-	output_buffer = NULL;
-	output_length = 1 + strnlen(g_logger_tag, LOGGER_TAG_SIZE) + 11 + 2 + strnlen(arg_buffer, arg_buffer_length) + 1;
-
-	output_buffer = (char *)malloc(output_length);
-	snprintf(output_buffer, output_length, "[%s%s] %s", g_logger_tag, level_buffer, arg_buffer);
-
-	if ((g_output_flags & SLO_CONSOLE) && (g_console_mask_flags & mask_flag))
-		printf("%s", output_buffer);
-	if ((g_output_flags & SLO_FILE) && (g_file_mask_flags & mask_flag))
-	{
-		if (!g_logger_fp)
-		{
-			printf("[FATAL] Logger file not existing!\n");
-			g_logger_initialized = FALSE;
-			return;
-		}
-
-		fprintf(g_logger_fp, "%s", output_buffer);
-		
-		fflush(g_logger_fp);
-	}
+	do_log_printf(FALSE, mask_flag, arg_buffer, arg_buffer_length);
 
 	if (arg_buffer)
 		free(arg_buffer);
 	if (output_buffer)
 		free(output_buffer);
 }
+
+void log_appendprintf(int mask_flag, const char *text, ...)
+{
+	va_list arg_list;
+	char *arg_buffer;
+	char *output_buffer;
+	int arg_buffer_length;
+	int	number_written;
+	bool finished;
+
+
+	arg_buffer_length = INITIAL_ARG_BUFFER_SIZE;
+	arg_buffer = NULL;
+	finished = TRUE;
+
+	do {
+		if (arg_buffer)
+			free(arg_buffer);
+
+		arg_buffer = (char *)malloc(arg_buffer_length);
+
+		va_start(arg_list, text);
+		number_written = vsnprintf(arg_buffer, arg_buffer_length, text, arg_list);
+		va_end(arg_list);
+
+		if (number_written >= arg_buffer_length - 1) {
+			arg_buffer_length = arg_buffer_length * 2;
+			finished = FALSE;
+		}
+	} while (!finished);
+
+	if (!arg_buffer)
+		return;
+
+	do_log_printf(TRUE, mask_flag, arg_buffer, arg_buffer_length);
+
+	if (arg_buffer)
+		free(arg_buffer);
+	if (output_buffer)
+		free(output_buffer);
+}
+
