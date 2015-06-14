@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <time.h>
 #include "grabProtocolTranslator.h"
 #include "SimpleLogger.h"
 
@@ -146,10 +147,29 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
 
     }
 
-    returnAction->cmd = TAKE;
-    returnAction->iParam1 = nextTriedFieldX;
-    returnAction->iParam2 = nextTriedFieldY;
-    strcpy(returnAction->sParam1,CLIENTNAME);
+    if (clientStrategy == 3){
+        nextTriedFieldX = rand()%n;
+        nextTriedFieldY = rand()%n;
+    }
+
+    if (clientStrategy == 4){
+        nextTriedFieldX = rand()%n;
+        nextTriedFieldY = rand()%n;
+    }
+
+    if (clientStrategy !=4) {
+        returnAction->cmd = TAKE;
+        returnAction->iParam1 = nextTriedFieldX;
+        returnAction->iParam2 = nextTriedFieldY;
+        strcpy(returnAction->sParam1,CLIENTNAME);
+    }
+    else{
+        returnAction->cmd = STATUS;
+        returnAction->iParam1 = nextTriedFieldX;
+        returnAction->iParam2 = nextTriedFieldY;
+        strcpy(returnAction->sParam1,"");
+    }
+
 
     lastTriedFieldX = nextTriedFieldX;
     lastTriedFieldY = nextTriedFieldY;
@@ -169,28 +189,66 @@ int main(int argc, char *argv[])
 
     char buffer[256];
     char returnMessage[256];
-    if (argc < 3) {
-        fprintf(stderr,"usage %s hostname port\n", argv[0]);
+    if ((argc != 3) && (argc != 5)) {
+        fprintf(stderr,"usage %s hostname port [clientname strategyID]\n", argv[0]);
         exit(0);
     }
+
+    srand(time(NULL));
+
     char childLogTag[256];
     sprintf(childLogTag, "CHILD:%d", getpid());
     startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
 
-    //define client player name
-    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Please define Player Name: \n");
-    //clean buffer
-    bzero(buffer, 256);
-    //gets string from stream stdin, terminated with newline \n
-    fgets(buffer, 255, stdin);
-    if(strlen(buffer) == 0){
-        strncpy(CLIENTNAME,"alice",256);
-        //*CLIENTNAME = "alice";
+    int strategyInput;
+
+    if(argc==3) {
+        //define client player name
+        log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Please define Player Name: \n");
+        //clean buffer
+        bzero(buffer, 256);
+        //gets string from stream stdin, terminated with newline \n
+        fgets(buffer, 255, stdin);
+        if (strlen(buffer) == 0) {
+            strncpy(CLIENTNAME, "alice", 256);
+            //*CLIENTNAME = "alice";
+        }
+        else {
+            strncpy(CLIENTNAME, buffer, strlen(buffer));
+        }
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "Please select the strategy ID: \n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "1: simple from 0/0 to n/n \n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "2: simple quick\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "3: random\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "4: inactive client (only STATUS check)\n");
+        //clean buffer
+        bzero(buffer, 256);
+        //gets string from stream stdin, terminated with newline \n
+        fgets(buffer, 255, stdin);
+
+        strategyInput = atoi(buffer);
+
     }
     else {
-        strncpy(CLIENTNAME,buffer,strlen(buffer));
+        strategyInput = atoi(argv[4]);
+        strncpy(buffer, argv[3], 256);
     }
-
+    switch (strategyInput) {
+        case 1:
+            clientStrategy = 1;
+            break;
+        case 2:
+            clientStrategy = 2;
+            break;
+        case 3:
+            clientStrategy = 3;
+            break;
+        case 4:
+            clientStrategy = 4;
+            break;
+        default:
+            clientStrategy = 1;
+    }
 
     // assignes 2nd start parameter as port number
     portno = atoi(argv[2]);
@@ -216,23 +274,6 @@ int main(int argc, char *argv[])
         error("ERROR connecting\n");
     log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "%10s: Connected to server\n", CLIENTNAME);
 
-    log_printf(SLL_INFO | SLC_GAMEPLAY, "Please select the strategy ID: \n");
-    log_printf(SLL_INFO | SLC_GAMEPLAY, "1: simple from 0/0 to n/n \n");
-    log_printf(SLL_INFO | SLC_GAMEPLAY, "2: simple quick\n");
-    //clean buffer
-    bzero(buffer, 256);
-    //gets string from stream stdin, terminated with newline \n
-    fgets(buffer, 255, stdin);
-
-    int strategyInput = atoi(buffer);
-
-    switch(strategyInput){
-        case 1: clientStrategy = 1;
-            break;
-        case 2: clientStrategy = 2;
-            break;
-        default: clientStrategy = 1;
-    }
 
     strncpy(buffer,"HELLO",256);
     //*buffer = "HELLO";
