@@ -224,13 +224,15 @@ void do_log_printf(bool append, int mask_flag, const char *arg_buffer, int arg_b
 
 		fflush(g_logger_fp);
 	}
+
+	if (output_buffer)
+		free(output_buffer);
 }
 
 void log_printf(int mask_flag, const char *text, ...)
 {
 	va_list arg_list;
 	char *arg_buffer;
-	char *output_buffer;
 	int arg_buffer_length;
 	int	number_written;
 	bool finished;
@@ -263,8 +265,6 @@ void log_printf(int mask_flag, const char *text, ...)
 
 	if (arg_buffer)
 		free(arg_buffer);
-	if (output_buffer)
-		free(output_buffer);
 }
 
 void log_appendprintf(int mask_flag, const char *text, ...)
@@ -304,7 +304,5 @@ void log_appendprintf(int mask_flag, const char *text, ...)
 
 	if (arg_buffer)
 		free(arg_buffer);
-	if (output_buffer)
-		free(output_buffer);
 }
 

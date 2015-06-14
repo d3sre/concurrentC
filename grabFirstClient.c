@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
     }
     else {
         strategyInput = atoi(argv[4]);
-        strncpy(buffer, argv[3], 256);
+        strncpy(CLIENTNAME, argv[3], 256);
     }
     switch (strategyInput) {
         case 1:

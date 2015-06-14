@@ -50,7 +50,7 @@ const char* SHMSN_PLAYFIELD_ELEMENT_PREFIX = "/PLAYFIELDELEMENT";
 
 // Shared memory semaphores
 sem_t* semStatusVariables;
-sem_t *semPlayerList;
+sem_t* semPlayerList;
 sem_t** semPlayfieldElement;
 
 // Shared memory for player list (assumed: max. 256 clients, max. name 255 chars)
@@ -72,7 +72,6 @@ struct sharedVariables{
     int sv_gameLevel;
     int sv_numberOfPlayers;
     int sv_numberOfPlayerNames;
-    int sv_playfieldSideLength;
 };
 
 int FIELDSIZE = -1;
@@ -118,23 +117,25 @@ void printPlayers(struct sharedVariables *mainSharedVariables, const char *pInfo
     log_printf(SLC_DEBUG, "PLAYERLIST B1\n");
 }
 
-void printPlayfield(struct sharedVariables *mainSharedVariables){
+void printPlayfield(){
     log_printf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE, "Playfield:\n");
     int x;
     int y;
     log_printf(SLC_DEBUG, "STATUS B2\n");
-    sem_wait(semStatusVariables);
     // Lock all semaphores for playfield elementst
     int i;
     for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
+        log_printf(SLC_DEBUG, "PLAYFIELD SEM WAIT %d\n", i);
         sem_wait(semPlayfieldElement[i]);
     }
 
     int index;
 
-    for(y=0; y<(mainSharedVariables->sv_playfieldSideLength);y++){
-        for(x=0; x< (mainSharedVariables->sv_playfieldSideLength); x++) {
-            index = mainSharedVariables->sv_playfieldSideLength*y+x;
+    for(y=0; y<FIELDSIZE;y++){
+        log_printf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE,"");
+        for(x=0; x< FIELDSIZE; x++) {
+            index = FIELDSIZE*y+x;
+
             if(shmPlayfield[index] == -1) {
                 log_appendprintf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE,"-");
             }
@@ -147,9 +148,9 @@ void printPlayfield(struct sharedVariables *mainSharedVariables){
     }
     //unlock all playfield element semaphores
     for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
+        log_printf(SLC_DEBUG, "PLAYFIELD SEM POST %d\n", i);
         sem_post(semPlayfieldElement[i]);
     }
-    sem_post(semStatusVariables);
     log_printf(SLC_DEBUG, "STATUS A2\n");
 
 }
@@ -168,12 +169,15 @@ void cleanUpGameplay(struct sharedVariables *mainSharedVariables, int socket) {
     // Close semaphores
     log_printf(SLC_DEBUG, "CLEANUP GAMEPLAY 3\n");
     sem_close(semStatusVariables);
+    sem_unlink(SHMSN_STATUS_VARIABLES);
     log_printf(SLC_DEBUG, "CLEANUP GAMEPLAY 4\n");
     sem_close(semPlayerList);
+    sem_unlink(SHMSN_PLAYER_LIST);
 
     for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
-        sprintf(shmmnPlayfieldElementName, "%s%d", SHMSN_PLAYFIELD_ELEMENT_PREFIX, i);
         sem_close(semPlayfieldElement[i]);
+        sprintf(shmmnPlayfieldElementName, "%s%d", SHMSN_PLAYFIELD_ELEMENT_PREFIX, i);
+        sem_unlink(shmmnPlayfieldElementName);
     }
     log_printf(SLC_DEBUG, "CLEANUP GAMEPLAY 5\n");
     free(semPlayfieldElement);
@@ -309,11 +313,9 @@ int getPlayerID(struct sharedVariables *mainSharedVariables, const char* playern
 }
 
 
-_Bool doHELLO(struct sharedVariables *mainSharedVariables, struct action* returnAction) {
+_Bool doHELLO(struct action* returnAction) {
     log_printf(SLC_DEBUG, "STATUS B7\n");
-    sem_wait(semStatusVariables);
-    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, "HELLO received with playfield size: %d\n", mainSharedVariables->sv_playfieldSideLength);
-    sem_post(semStatusVariables);
+    log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION, "HELLO received with playfield size: %d\n", FIELDSIZE);
     log_printf(SLC_DEBUG, "STATUS A7\n");
 
     if (returnAction == NULL)
@@ -325,9 +327,7 @@ _Bool doHELLO(struct sharedVariables *mainSharedVariables, struct action* return
     if(successfulSignup){
         returnAction->cmd = SIZE;
         log_printf(SLC_DEBUG, "STATUS B8\n");
-        sem_wait(semStatusVariables);
-        returnAction->iParam1 = mainSharedVariables->sv_playfieldSideLength;
-        sem_post(semStatusVariables);
+        returnAction->iParam1 = FIELDSIZE;
         log_printf(SLC_DEBUG, "STATUS A8\n");
     }
     else {
@@ -343,10 +343,7 @@ _Bool doTAKE(struct sharedVariables *mainSharedVariables, int x, int y, char *pl
     if (x< 0 || x>=FIELDSIZE || y<0 || y>= FIELDSIZE || playerName == NULL || returnAction == NULL)
         return FALSE;
 
-    sem_wait(semStatusVariables);
-    int index = y*mainSharedVariables->sv_playfieldSideLength+x;
-    sem_post(semStatusVariables);
-
+    int index = y*FIELDSIZE+x;
 
     if (!existPlayer(mainSharedVariables,playerName))
         addPlayer(mainSharedVariables, playerName);
@@ -366,21 +363,16 @@ _Bool doTAKE(struct sharedVariables *mainSharedVariables, int x, int y, char *pl
 
 }
 
-_Bool doSTATUS(struct sharedVariables *mainSharedVariables, int x, int y, struct action* returnAction) {
+_Bool doSTATUS(int x, int y, struct action* returnAction) {
     log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Status x:d% y:%d\n",x,y);
     log_printf(SLC_DEBUG, "STATUS B9\n");
-    sem_wait(semStatusVariables);
-    if (x< 0 || x>=mainSharedVariables->sv_playfieldSideLength || y<0 || y>= mainSharedVariables->sv_playfieldSideLength || returnAction == NULL){
-        sem_post(semStatusVariables);
+    if (x< 0 || x>=FIELDSIZE || y<0 || y>= FIELDSIZE || returnAction == NULL){
         log_printf(SLC_DEBUG, "STATUS A9A\n");
         return FALSE;
     }
-    sem_post(semStatusVariables);
     log_printf(SLC_DEBUG, "STATUS A9B\n");
 
-    sem_wait(semStatusVariables);
-    int index = y*mainSharedVariables->sv_playfieldSideLength+x;
-    sem_post(semStatusVariables);
+    int index = y*FIELDSIZE+x;
 
     sem_wait(semPlayfieldElement[index]);
     int clientid = shmPlayfield[index];
@@ -483,7 +475,7 @@ int main(int argc, char *argv[]) {
 
     sprintf(gameplayLogTag, "GAMEPLAY:%d", getpid());
     //startup_logger(gameplayLogTag, SLO_CONSOLE | SLO_FILE, SLC_GAMEPLAY, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
-    if(strcmp(loglevel,"RELEASE")) {
+    if(strcmp(loglevel,"RELEASE") == 0) {
         startup_logger(gameplayLogTag, SLO_CONSOLE | SLO_FILE, SLL_FATAL| SLL_ERROR |SLC_RELEASE, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
     }
     else {
@@ -503,7 +495,7 @@ int main(int argc, char *argv[]) {
 
     // Open shared nemory semaphores
     // semaphore for status variables
-    if ((semStatusVariables = sem_open(SHMSN_STATUS_VARIABLES, O_CREAT, 0666, 1)) == SEM_FAILED) {
+    if ((semStatusVariables = sem_open(SHMSN_STATUS_VARIABLES, O_CREAT, 0600, 1)) == SEM_FAILED) {
         error(SLL_ERROR | SLC_GENERALERRORS,"semaphore initialization");
         return 1;
     }
@@ -520,16 +512,12 @@ int main(int argc, char *argv[]) {
 
 
     // semaphore for player list
-    if ((semPlayerList = sem_open(SHMSN_PLAYER_LIST, O_CREAT, 0666, 1)) == SEM_FAILED) {
+    if ((semPlayerList = sem_open(SHMSN_PLAYER_LIST, O_CREAT, 0600, 1)) == SEM_FAILED) {
 
         error(SLL_ERROR | SLC_GENERALERRORS,"semaphore initialization");
         return 1;
     }
 
-    log_printf(SLC_DEBUG, "PLAYERLIST B0\n");
-    sem_wait(semPlayerList);
-    sem_post(semPlayerList);
-    log_printf(SLC_DEBUG, "PLAYERLIST A0\n");
 
 
     // semaphores for playfield elementst
@@ -538,7 +526,7 @@ int main(int argc, char *argv[]) {
     semPlayfieldElement = malloc(FIELDSIZE*FIELDSIZE*sizeof(sem_t));
     for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
         sprintf(shmmnPlayfieldElementName, "%s%d", SHMSN_PLAYFIELD_ELEMENT_PREFIX, i);
-        if ((semPlayfieldElement[i] = sem_open(shmmnPlayfieldElementName, O_CREAT, 0666, 1)) == SEM_FAILED) {
+        if ((semPlayfieldElement[i] = sem_open(shmmnPlayfieldElementName, O_CREAT, 0600, 1)) == SEM_FAILED) {
             error(SLL_ERROR | SLC_GENERALERRORS,"semaphore initialization");
             return 1;
         }
@@ -548,7 +536,7 @@ int main(int argc, char *argv[]) {
 
     log_printf(SLL_WARNING | SLC_GENERALERRORS, "Step - 1-\n");
 
-    sharedMemSizeStruct = 1024; //like example from website
+    sharedMemSizeStruct = sizeof(struct sharedVariables); //like example from website
     //create segment & set permissions
     if ((sharedMemIDStruct = shmget(SHMK_STATUS_VARIABLES, sharedMemSizeStruct, IPC_CREAT | 0666)) < 0) {
         error(SLL_ERROR | SLC_GENERALERRORS, "ERROR when trying to create shared memory\n");
@@ -582,12 +570,11 @@ int main(int argc, char *argv[]) {
     mainSharedVariables->sv_gameLevel=0;
     mainSharedVariables->sv_numberOfPlayers=0;
     mainSharedVariables->sv_numberOfPlayerNames = 0;
-    mainSharedVariables->sv_playfieldSideLength=FIELDSIZE;
 
     // Create Playerfield in shared memory
     shmPlayfieldMemSize = FIELDSIZE*FIELDSIZE*sizeof(int);
     // Create segment & set permissions
-    if ((shmPlayerListID = shmget(SHMK_PLAYFIELD, shmPlayfieldMemSize, IPC_CREAT | 0666)) < 0) {
+    if ((shmPlayfieldID = shmget(SHMK_PLAYFIELD, shmPlayfieldMemSize, IPC_CREAT | 0666)) < 0) {
         error(SLL_ERROR | SLC_GENERALERRORS, "ERROR when trying to create shared memory for playfield\n");
         return 1;
     }
@@ -622,10 +609,6 @@ int main(int argc, char *argv[]) {
     _Bool isChild = FALSE;
 
 
-
-
-
-
     log_printf(SLC_DEBUG, "-4-\n");
     sem_wait(semStatusVariables);
     log_printf(SLC_DEBUG, "-5-\n");
@@ -644,7 +627,7 @@ int main(int argc, char *argv[]) {
         char socketHandlerLogTag[256];
         sprintf(socketHandlerLogTag, "SOCKETHANDLER:%d", getpid());
         //startup_logger(socketHandlerLogTag, SLO_CONSOLE | SLO_FILE, SLC_SOCKETHANDLER, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
-        if(strcmp(loglevel,"RELEASE")) {
+        if(strcmp(loglevel,"RELEASE") == 0) {
             startup_logger(socketHandlerLogTag, SLO_CONSOLE | SLO_FILE, SLL_FATAL| SLL_ERROR |SLC_RELEASE, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
         }
         else {
@@ -692,12 +675,19 @@ int main(int argc, char *argv[]) {
         if (currentProcessType == sockethandler) {
             log_printf(SLL_INFO | SLC_SOCKETHANDLER, "SockethandlerPID:%d Mode: %d] Entered Sockethandler interaction loop part\n", getpid(), currentProcessType);
 
+            log_printf(SLC_DEBUG, "COREDUMP 1\n");
             newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+            log_printf(SLC_DEBUG, "COREDUMP 2\n");
 
-            if (newsockfd < 0)
+            if (newsockfd < 0) {
+                log_printf(SLC_DEBUG, "COREDUMP 3\n");
                 error(SLL_ERROR | SLC_PROCESSDISPATCHING, "ERROR on accept");
+                log_printf(SLC_DEBUG, "COREDUMP 4\n");
+            }
             else {
+                log_printf(SLC_DEBUG, "COREDUMP 5\n");
                 log_printf(SLL_INFO | SLC_PROCESSDISPATCHING|SLC_RELEASE, "SockethandlerPID:%d Mode: %d] New connection was accepted (newsockfd): %d\n", getpid(), currentProcessType, newsockfd);
+                log_printf(SLC_DEBUG, "COREDUMP 6\n");
                 childpid = fork();
 
                 if (childpid < 0)
@@ -709,7 +699,7 @@ int main(int argc, char *argv[]) {
                     char childLogTag[256];
                     sprintf(childLogTag, "CHILDINTERACTION:%d", currentChildPID);
                     //startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
-                    if(strcmp(loglevel,"RELEASE")) {
+                    if(strcmp(loglevel,"RELEASE") == 0) {
                         startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLL_FATAL| SLL_ERROR |SLC_RELEASE, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
                     }
                     else {
@@ -812,7 +802,7 @@ int main(int argc, char *argv[]) {
                 //possible receiving commands
                 switch (currentAction.cmd) {
                     case HELLO:
-                        doHELLO(mainSharedVariables, &returnAction);
+                        doHELLO(&returnAction);
                         // Manually triffer sending the nexcessary SIZE command
 
                         // change struct to string
@@ -828,7 +818,7 @@ int main(int argc, char *argv[]) {
                         doTAKE(mainSharedVariables, currentAction.iParam1, currentAction.iParam2, currentAction.sParam1, &returnAction);
                         break;
                     case STATUS:
-                        doSTATUS(mainSharedVariables, currentAction.iParam1, currentAction.iParam2, &returnAction);
+                        doSTATUS(currentAction.iParam1, currentAction.iParam2, &returnAction);
                         break;
                     case END:
                         doEND(mainSharedVariables, currentAction.sParam1, &returnAction);
@@ -859,10 +849,6 @@ int main(int argc, char *argv[]) {
 
 
             //2. can we start the game yet
-            log_printf(SLC_DEBUG, "STATUS Before Semaphore\n");
-            sem_wait(semStatusVariables);
-            sem_post(semStatusVariables);
-            log_printf(SLC_DEBUG, "STATUS After Semaphore\n");
 
 
             log_printf(SLL_INFO|SLC_GAMEPLAY, "GameplayPID:%d Mode: %d] Number of players:%d\n",currentPID, currentProcessType, mainSharedVariables->sv_numberOfPlayers);
@@ -872,13 +858,13 @@ int main(int argc, char *argv[]) {
 
 
             printPlayers(mainSharedVariables, logstring);
-            printPlayfield(mainSharedVariables);
+            printPlayfield();
 
             sleep(2);
 
             log_printf(SLC_DEBUG, "STATUS B13\n");
             sem_wait(semStatusVariables);
-            if (mainSharedVariables->sv_numberOfPlayers >= (mainSharedVariables->sv_playfieldSideLength/2) && mainSharedVariables->sv_gameLevel == 1){
+            if (mainSharedVariables->sv_numberOfPlayers >= (FIELDSIZE/2) && mainSharedVariables->sv_gameLevel == 1){
                 mainSharedVariables->sv_gameLevel=2;
                 sem_post(semStatusVariables);
                 log_printf(SLC_DEBUG, "STATUS A13A\n");
@@ -887,7 +873,7 @@ int main(int argc, char *argv[]) {
             }
             else {
                 log_printf(SLL_INFO | SLC_GAMEPLAY, "Current Shared Memory: GameLevel: %d, Fieldsize: %d, NumberOfPlayers: %d, NumberOfPlayerNames: %d\n",
-                   mainSharedVariables->sv_gameLevel, mainSharedVariables->sv_playfieldSideLength,
+                   mainSharedVariables->sv_gameLevel, FIELDSIZE,
                    mainSharedVariables->sv_numberOfPlayers, mainSharedVariables->sv_numberOfPlayerNames);
                 sem_post(semStatusVariables);
                 log_printf(SLC_DEBUG, "STATUS A13B\n");
