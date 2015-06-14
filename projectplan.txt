@@ -33,3 +33,7 @@ Next steps:
 http://stackoverflow.com/questions/6501966/check-if-char-array-contains-int-float-or-double-value-and-store-value-to-res
  
 - semaphore implementieren
+
+
+open point:
+- ctrl+c on server does not send finish to clients (which isn't defined in the protocol)
