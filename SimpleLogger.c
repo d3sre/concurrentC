@@ -80,16 +80,16 @@ void startup_logger(const char *logger_tag, int output_flags, int console_mask_f
 
 	if (g_output_flags & SLO_CONSOLE)
 	{
-		printf("\n");
-		for (i = 0; i < intro_length; i++)
-			printf("=");
-		printf("\n");
+//		printf("\n");
+//		for (i = 0; i < intro_length; i++)
+//			printf("=");
+//		printf("\n");
 		printf("[%s] %s", g_logger_tag, intro_message);
 		printf("\n");
-		for (i = 0; i < intro_length; i++)
-			printf("=");
-		printf("\n");
-		printf("\n");
+//		for (i = 0; i < intro_length; i++)
+//			printf("=");
+//		printf("\n");
+//		printf("\n");
 	}
 	if (g_output_flags & SLO_FILE)
 	{
@@ -134,16 +134,16 @@ void shutdown_logger()
 
 	if (g_output_flags & SLO_CONSOLE)
 	{
-		printf("\n");
-		for (i = 0; i < extro_length; i++)
-			printf("=");
-		printf("\n");
+//		printf("\n");
+//		for (i = 0; i < extro_length; i++)
+//			printf("=");
+//		printf("\n");
 		printf("[%s] %s", g_logger_tag, extro_message);
 		printf("\n");
-		for (i = 0; i < extro_length; i++)
-			printf("=");
-		printf("\n");
-		printf("\n");
+//		for (i = 0; i < extro_length; i++)
+//			printf("=");
+//		printf("\n");
+//		printf("\n");
 	}
 	if (g_output_flags & SLO_FILE)
 	{
