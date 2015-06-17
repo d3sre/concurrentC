@@ -25,7 +25,7 @@
 
 #define TRUE 1
 #define FALSE 0
-char CLIENTNAME[256];
+char CLIENTNAME[243];
 
 int gameon = 0;
 int fieldSize = 2;
@@ -35,8 +35,6 @@ int** playfield;
 int clientStrategy;
 int lastTriedFieldX = 0;
 int lastTriedFieldY = 0;
-
-
 
 
 void error(const char *msg)
@@ -147,13 +145,13 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
 
     if (clientStrategy ==2){
         int counter = lastTriedFieldY*n+lastTriedFieldX;
-        log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLC_DEBUG | SLC_SOCKETCOMMUNICATION, "last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
         counter++;
         if (counter > n*n-1)
             counter = 0;
         nextTriedFieldY = counter/n;
         nextTriedFieldX = counter%n;
-        log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLC_DEBUG | SLC_SOCKETCOMMUNICATION, "next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
 
     }
 
@@ -217,7 +215,7 @@ int main(int argc, char *argv[])
 
     if(argc==3) {
         //define client player name
-        log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Please define Player Name: \n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "Please define Player Name: \n");
         //clean buffer
         bzero(buffer, 256);
         //gets string from stream stdin, terminated with newline \n
