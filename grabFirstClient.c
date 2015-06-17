@@ -16,7 +16,7 @@
 #include <netdb.h>
 #include <time.h>
 #include "grabProtocolTranslator.h"
-#include "SimpleLogger.h"
+
 
 
 /*
