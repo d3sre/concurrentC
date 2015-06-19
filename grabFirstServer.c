@@ -764,7 +764,7 @@ int main(int argc, char *argv[]) {
                         switch (currentAction.cmd) {
                             case HELLO:
                                 doHELLO(&returnAction);
-                                // Manually trigger sending the necessary SIZE command
+                                // Manually triffer sending the nexcessary SIZE command
 
                                 // change struct to string
                                 encode(&returnAction, replyMessage);
