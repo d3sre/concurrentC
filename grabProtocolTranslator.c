@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "grabProtocolTranslator.h"
-
+#include "SimpleLogger.h"
 
 void decode(const char* cmd, struct action* a) {
     //printf("entered parser");
