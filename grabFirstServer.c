@@ -103,7 +103,9 @@ void printPlayers(struct sharedVariables *shmStatusVariables){
     sem_wait(semPlayerList);
     sem_wait(semStatusVariables);
 
-    log_printf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE, "PlayerList: Number of players: %d / player names: %d\n", shmStatusVariables->sv_numberOfPlayers,shmStatusVariables->sv_numberOfPlayerNames);
+
+    log_printf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE, "PlayerList: Number of players: %d\n", shmStatusVariables->sv_numberOfPlayers);
+    log_printf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE, "PlayerList: Number of player names: %d\n", shmStatusVariables->sv_numberOfPlayerNames);
     log_printf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE, "PlayerList:\n");
 
     for (i = 0; i < shmStatusVariables->sv_numberOfPlayerNames; i++) {
