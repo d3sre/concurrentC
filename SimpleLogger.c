@@ -18,6 +18,18 @@ const int SLL_INFO = 1 << 6;
 const int SLL_IDLE = 1 << 7;
 const int SLL_ALL_LEVELS = 248; // Default
 
+/*	stdout and stderr mapping, but only if corresponding level is enabled in startup logger
+ * 
+ * 					SLO_CONSOLE			SLO_FILE
+ * 
+ * SLL_FATAL		stderr				logger file & stderr
+ * SLL_ERROR		stderr				logger file & stderr
+ * SLL_WARNING		stderr				logger file & stderr
+ * SLL_INFO			stdout				logger file
+ * SLL_IDLE			stdout				logger file
+ * No level			stdout				logger file
+ */
+
 // Simple logger categories (bit 8..31) - for mask flags
 const int SLC_CHILDINTERACTION = 1 << 8;
 const int SLC_GAMEPLAY = 1 << 9;
@@ -66,7 +78,7 @@ void startup_logger(const char *logger_tag, int output_flags, int console_mask_f
 
 	/*if (g_logger_initialized)
 	{
-		printf("[WARNING] Logger already initialized!\n");
+		fprintf(stderr, "[WARNING] Logger already initialized!\n");
 		return;
 	}*/
 
@@ -80,16 +92,16 @@ void startup_logger(const char *logger_tag, int output_flags, int console_mask_f
 
 	if (g_output_flags & SLO_CONSOLE)
 	{
-//		printf("\n");
+//		fprintf(stdout, "\n");
 //		for (i = 0; i < intro_length; i++)
-//			printf("=");
-//		printf("\n");
-		printf("[%s] %s", g_logger_tag, intro_message);
-		printf("\n");
+//			fprintf(stdout, "=");
+//		fprintf(stdout, "\n");
+		fprintf(stdout, "[%s] %s", g_logger_tag, intro_message);
+		fprintf(stdout, "\n");
 //		for (i = 0; i < intro_length; i++)
-//			printf("=");
-//		printf("\n");
-//		printf("\n");
+//			fprintf(stdout, "=");
+//		fprintf(stdout, "\n");
+//		fprintf(stdout, "\n");
 	}
 	if (g_output_flags & SLO_FILE)
 	{
@@ -102,7 +114,7 @@ void startup_logger(const char *logger_tag, int output_flags, int console_mask_f
 		g_logger_fp = fopen(log_file_name, "w+");
 		if (g_logger_fp == NULL)
 		{
-			printf("[FATAL] Logger file not created!\n");
+			fprintf(stderr, "[FATAL] Logger file not created!\n");
 			return;
 		}
 	
@@ -134,22 +146,22 @@ void shutdown_logger()
 
 	if (g_output_flags & SLO_CONSOLE)
 	{
-//		printf("\n");
+//		fprintf(stdout, "\n");
 //		for (i = 0; i < extro_length; i++)
-//			printf("=");
-//		printf("\n");
-		printf("[%s] %s", g_logger_tag, extro_message);
-		printf("\n");
+//			fprintf(stdout, "=");
+//		fprintf(stdout, "\n");
+		fprintf(stdout, "[%s] %s", g_logger_tag, extro_message);
+		fprintf(stdout, "\n");
 //		for (i = 0; i < extro_length; i++)
-//			printf("=");
-//		printf("\n");
-//		printf("\n");
+//			fprintf(stdout, "=");
+//		fprintf(stdout, "\n");
+//		fprintf(stdout, "\n");
 	}
 	if (g_output_flags & SLO_FILE)
 	{
 		if (!g_logger_fp)
 		{
-			printf("[FATAL] Logger file not existing!\n");
+			fprintf(stderr, "[FATAL] Logger file not existing!\n");
 			g_logger_initialized = FALSE;
 			return;
 		}
@@ -181,8 +193,8 @@ void do_log_printf(bool append, int mask_flag, const char *arg_buffer, int arg_b
 
 	if (!g_logger_initialized)
 	{
-		printf("[WARNING] Logger not yet initialized!\n");
-		printf("[WARNING] Text to be logged: %s\n", arg_buffer);
+		fprintf(stderr, "[WARNING] Logger not yet initialized!\n");
+		fprintf(stderr, "[WARNING] Text to be logged: %s\n", arg_buffer);
 		return;
 	}
 
@@ -211,12 +223,18 @@ void do_log_printf(bool append, int mask_flag, const char *arg_buffer, int arg_b
 		snprintf(output_buffer, output_length, "%s", arg_buffer);
 
 	if ((g_output_flags & SLO_CONSOLE) && (g_console_mask_flags & mask_flag))
-		printf("%s", output_buffer);
+	{
+		if ((mask_flag & SLL_FATAL) || (mask_flag & SLL_ERROR) || (mask_flag & SLL_WARNING))
+			fprintf(stderr, "%s", output_buffer);
+		else
+			fprintf(stdout, "%s", output_buffer);
+	}
+	
 	if ((g_output_flags & SLO_FILE) && (g_file_mask_flags & mask_flag))
 	{
 		if (!g_logger_fp)
 		{
-			printf("[FATAL] Logger file not existing!\n");
+			fprintf(stderr, "[FATAL] Logger file not existing!\n");
 			g_logger_initialized = FALSE;
 			return;
 		}
@@ -272,7 +290,6 @@ void log_appendprintf(int mask_flag, const char *text, ...)
 {
 	va_list arg_list;
 	char *arg_buffer;
-	char *output_buffer;
 	int arg_buffer_length;
 	int	number_written;
 	bool finished;

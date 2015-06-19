@@ -15,6 +15,18 @@ extern const int SLL_INFO;
 extern const int SLL_IDLE;
 extern const int SLL_ALL_LEVELS; // Default
 
+/*	stdout and stderr mapping, but only if corresponding level is enabled in startup logger
+ * 
+ * 					SLO_CONSOLE			SLO_FILE
+ * 
+ * SLL_FATAL		stderr				logger file
+ * SLL_ERROR		stderr				logger file
+ * SLL_WARNING		stderr				logger file
+ * SLL_INFO			stdout				logger file
+ * SLL_IDLE			stdout				logger file
+ * No level			stdout				logger file
+ */
+
 // Simple logger categories (bit 8..31) - for mask flags
 extern const int SLC_CHILDINTERACTION;
 extern const int SLC_GAMEPLAY;
