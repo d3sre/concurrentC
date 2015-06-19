@@ -156,14 +156,11 @@ int checkPlayfield(){
 
 }
 
-void cleanUpGameplay(struct sharedVariables *shmStatusVariables, int socket) {
+void cleanUpGameplay(struct sharedVariables *shmStatusVariables) {
     int i;
     char shmmnPlayfieldElementName[256];
 
     log_printf(SLL_DEBUG|SLC_GAMEPLAY, "In cleanUpGameplay function\n");
-
-    // Close socket
-    close(socket);
 
     // Close semaphores
     sem_close(semStatusVariables);
@@ -196,8 +193,11 @@ void cleanUpGameplay(struct sharedVariables *shmStatusVariables, int socket) {
     shutdown_logger();
 }
 
-void cleanUpSocketHandler() {
-    log_printf(SLL_DEBUG|SLC_GAMEPLAY, "In cleanUpSocketHandler function\n");
+void cleanUpSocketHandler(int socket) {
+    log_printf(SLL_DEBUG|SLC_GAMEPLAY, "In cleanUpSocketHandler function with socket id: %d\n", socket);
+
+    // Close socket
+    close(socket);
 
     // Cleanup shared memeory
     shmdt(shmPlayerList);
@@ -209,7 +209,7 @@ void cleanUpSocketHandler() {
 }
 
 void cleanUpChildInteraction(struct sharedVariables *shmStatusVariables,int socket) {
-    log_printf(SLL_DEBUG|SLC_GAMEPLAY, "In cleanUpChildInteraction function\n");
+    log_printf(SLL_DEBUG|SLC_GAMEPLAY, "In cleanUpChildInteraction function with socket id: %d\n", socket);
 
     // Close socket
     close(socket);
@@ -551,25 +551,7 @@ int main(int argc, char *argv[]) {
     memset(shmPlayfield, -1, shmPlayfieldMemSize);
 
 
-    // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        log_printf(SLL_ERROR | SLC_GENERALERRORS, "ERROR on opening socket\n");
-        keepRunning = 0;
-    }
-    //set sizeof(serv_addr) of bytes to zero
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    //configure serv_addr structure object with server details
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
-    //bind  socket file descriptor to serv_addr, with length sizeof(serv_addr) and if error print out
-    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        error(SLL_ERROR | SLC_GENERALERRORS, "ERROR on binding socket to port\n");
-        keepRunning=0;
-    }
-    listen(sockfd,5);
-    clilen = sizeof(cli_addr);
+
 
     //raise game level
     gameon=1;
@@ -596,6 +578,26 @@ int main(int argc, char *argv[]) {
         else {
             startup_logger(socketHandlerLogTag, SLO_CONSOLE | SLO_FILE, SLL_ERROR | SLL_DEBUG| SLL_INFO| SLC_SOCKETHANDLER, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
         }
+
+        // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            log_printf(SLL_ERROR | SLC_GENERALERRORS, "ERROR on opening socket\n");
+            keepRunning = 0;
+        }
+        //set sizeof(serv_addr) of bytes to zero
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        //configure serv_addr structure object with server details
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr.s_addr = INADDR_ANY;
+        serv_addr.sin_port = htons(portno);
+        //bind  socket file descriptor to serv_addr, with length sizeof(serv_addr) and if error print out
+        if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            log_printf(SLL_ERROR | SLC_GENERALERRORS, "ERROR on binding socket to port\n");
+            keepRunning=0;
+        }
+        listen(sockfd,5);
+        clilen = sizeof(cli_addr);
 
         // Get access to Player List in shared memory
         // get segment & set permissions
@@ -662,6 +664,7 @@ int main(int argc, char *argv[]) {
                         if (childpid == 0) {
                             pid_t currentChildPID = getpid();
                             pid_t parentPID = getppid();
+
 
                             char childLogTag[256];
                             sprintf(childLogTag, "CHILDINTERACTION:%d", currentChildPID);
@@ -808,6 +811,9 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
+                else {
+                    close(newsockfd+1);
+                }
             }
             else{
                 int winner = shmStatusVariables->sv_winnerID;
@@ -902,11 +908,18 @@ int main(int argc, char *argv[]) {
             log_printf(SLL_DEBUG | SLC_GAMEPLAY,"Exit status of forked process %d was %d (%s)\n", (int)wpid, status, (status > 0) ? "accept" : "reject");
         }
 
-        cleanUpGameplay(shmStatusVariables, sockfd);
+        cleanUpGameplay(shmStatusVariables);
     }
 
-    if (currentProcessType == sockethandler)
-        cleanUpSocketHandler();
+    if (currentProcessType == sockethandler) {
+        sem_wait(semStatusVariables);
+        if(shmStatusVariables->sv_gameLevel !=3) {
+            shmStatusVariables->sv_gameLevel = 0;
+
+        }
+        sem_post(semStatusVariables);
+        cleanUpSocketHandler(sockfd);
+    }
     if (currentProcessType == childinteraction) {
         /*sem_wait(semStatusVariables);
         if(shmStatusVariables->sv_gameLevel == 0) {

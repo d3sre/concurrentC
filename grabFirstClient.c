@@ -287,7 +287,13 @@ int main(int argc, char *argv[])
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
         log_printf(SLL_ERROR, "ERROR connecting\n");
-    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "%10s: Connected to server\n", CLIENTNAME);
+
+    //find opened port
+    int newPort;
+    struct sockaddr_in sin;
+    socklen_t len = sizeof(sin);
+    newPort = getsockname(sockfd, (struct sockaddr *)&sin, &len);
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "%10s: Connected to server on port %d\n", CLIENTNAME,ntohs(sin.sin_port));
 
 
     strncpy(buffer,"HELLO",256);
@@ -340,7 +346,7 @@ int main(int argc, char *argv[])
                     cleanUpClient(sockfd);
                     continue;
                 default:
-                    log_printf(SLL_INFO | SLC_GAMEPLAY, "Assuming player name was received ...: %s\n", currentAction.sParam1);;
+                    log_printf(SLL_DEBUG | SLC_GAMEPLAY, "Assuming player name was received ...: %s\n", currentAction.sParam1);;
                     updatePlayfield(&currentAction, &returnAction);
                     break;
 
