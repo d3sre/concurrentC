@@ -11,7 +11,7 @@ const int SLO_FILE = 1 << 1;
 const int SLO_ALL_OUTPUTS = 7; // Default
 
 // Simple logger levels (bit 3..7) - for mask flags
-const int SLL_FATAL = 1 << 3;
+const int SLL_DEBUG = 1 << 3;
 const int SLL_ERROR = 1 << 4;
 const int SLL_WARNING = 1 << 5;
 const int SLL_INFO = 1 << 6;
@@ -22,7 +22,7 @@ const int SLL_ALL_LEVELS = 248; // Default
  * 
  * 					SLO_CONSOLE			SLO_FILE
  * 
- * SLL_FATAL		stderr				logger file & stderr
+ * SLL_DEBUG		stderr				logger file & stderr
  * SLL_ERROR		stderr				logger file & stderr
  * SLL_WARNING		stderr				logger file & stderr
  * SLL_INFO			stdout				logger file
@@ -201,8 +201,8 @@ void do_log_printf(bool append, int mask_flag, const char *arg_buffer, int arg_b
 	if (((g_console_mask_flags & mask_flag) || ((g_file_mask_flags & mask_flag))) == FALSE)
 		return;
 
-	if (mask_flag & SLL_FATAL)
-		strncpy(level_buffer, " |   FATAL", 11);
+	if (mask_flag & SLL_DEBUG)
+		strncpy(level_buffer, " |   DEBUG", 11);
 	if (mask_flag & SLL_ERROR)
 		strncpy(level_buffer, " |   ERROR", 11);
 	if (mask_flag & SLL_WARNING)
@@ -224,7 +224,7 @@ void do_log_printf(bool append, int mask_flag, const char *arg_buffer, int arg_b
 
 	if ((g_output_flags & SLO_CONSOLE) && (g_console_mask_flags & mask_flag))
 	{
-		if ((mask_flag & SLL_FATAL) || (mask_flag & SLL_ERROR) || (mask_flag & SLL_WARNING))
+		if ((mask_flag & SLL_DEBUG) || (mask_flag & SLL_ERROR) || (mask_flag & SLL_WARNING))
 			fprintf(stderr, "%s", output_buffer);
 		else
 			fprintf(stdout, "%s", output_buffer);

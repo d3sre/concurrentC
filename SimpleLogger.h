@@ -8,7 +8,7 @@ extern const int SLO_FILE;
 extern const int SLO_ALL_OUTPUTS; // Default
 
 // Simple logger levels (bit 3..7) - for mask flags
-extern const int SLL_FATAL;
+extern const int SLL_DEBUG;
 extern const int SLL_ERROR;
 extern const int SLL_WARNING;
 extern const int SLL_INFO;

@@ -50,7 +50,7 @@ void cleanUpClient(int sockfd) {
 
 _Bool doSIZE(int playfieldN){
     int x;
-    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Size received\n");
+    log_printf(SLL_DEBUG | SLC_SOCKETCOMMUNICATION, "Size received\n");
     log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Playfield size: %d\n", playfieldN);
 
     // 4 as this is the minimum size
@@ -145,13 +145,13 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
 
     if (clientStrategy ==2){
         int counter = lastTriedFieldY*n+lastTriedFieldX;
-        log_printf(SLC_DEBUG | SLC_SOCKETCOMMUNICATION, "last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLL_DEBUG | SLC_SOCKETCOMMUNICATION, "last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
         counter++;
         if (counter > n*n-1)
             counter = 0;
         nextTriedFieldY = counter/n;
         nextTriedFieldX = counter%n;
-        log_printf(SLC_DEBUG | SLC_SOCKETCOMMUNICATION, "next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLL_DEBUG | SLC_SOCKETCOMMUNICATION, "next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
 
     }
 
@@ -270,11 +270,11 @@ int main(int argc, char *argv[])
     // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
-        error("ERROR opening socket\n");
+        log_printf(SLL_ERROR, "ERROR opening socket\n");
     //define servername from start parameter by host database lookup
     server = gethostbyname(argv[1]);
     if (server == NULL) {
-        error("ERROR, no such host\n");
+        log_printf(SLL_ERROR, "ERROR, no such host\n");
         exit(0);
     }
     //set bites to zero
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
           server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
-        error("ERROR connecting\n");
+        log_printf(SLL_ERROR, "ERROR connecting\n");
     log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "%10s: Connected to server\n", CLIENTNAME);
 
 
@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
     //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
     length = write(sockfd, buffer, strlen(buffer));
     if (length < 0)
-        error("ERROR writing to socket\n");
+        log_printf(SLL_ERROR, "ERROR writing to socket\n");
     gameon = 1;
     while(gameon >= 1) {
 //        printf("Please enter the message: \n");
@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
             //print buffer, terminated by newline \n
 
             decode(buffer, &currentAction);
-            log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Client Buffer decoded: %s\n", buffer);
+            log_printf(SLL_DEBUG | SLC_SOCKETCOMMUNICATION, "Client Buffer decoded: %s\n", buffer);
 
             //possible receiving commands
             switch (currentAction.cmd) {
@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
             //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
             length = write(sockfd, returnMessage, strlen(returnMessage));
             if (length < 0)
-                error("ERROR writing to socket\n");
+                log_printf(SLL_ERROR, "ERROR writing to socket\n");
 
             //printf("Gameon: %d\n", gameon);
         }
