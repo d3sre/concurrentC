@@ -1,8 +1,0 @@
-//
-// Created by des on 4/6/15.
-//
-
-#ifndef _GRABFIRST_GRABFIRST_CLIENT_H_
-#define _GRABFIRST_GRABFIRST_CLIENT_H_
-
-#endif //_GRABFIRST_GRABFIRST_CLIENT_H_
