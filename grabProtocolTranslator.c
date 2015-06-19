@@ -112,46 +112,46 @@ void decode(const char* cmd, struct action* a) {
 
 
     //printf("\n");
-    fprintf(stderr, "DECODE: \n");
+    log_printf(SLC_DEBUG | SLC_SOCKETCOMMUNICATION, "DECODE: \n");
     switch (a->cmd) {
         case HELLO:
-            fprintf(stderr, " - Cmd: HELLO\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: HELLO\n");
             break;
         case SIZE:
-            fprintf(stderr, " - Cmd: SIZE\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: SIZE\n");
             break;
         case NACK:
-            fprintf(stderr, " - Cmd: NACK\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: NACK\n");
             break;
         case TAKEN:
-            fprintf(stderr, " - Cmd: TAKEN\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: TAKEN\n");
             break;
         case INUSE:
-            fprintf(stderr, " - Cmd: INUSE\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: INUSE\n");
             break;
         case PLAYERNAME:
-            fprintf(stderr, " - Cmd: PLAYERNAME\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: PLAYERNAME\n");
             break;
         case START:
-            fprintf(stderr, " - Cmd: START\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: START\n");
             break;
         case END:
-            fprintf(stderr, " - Cmd: END\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: END\n");
             break;
         case TAKE:
-            fprintf(stderr, " - Cmd: TAKE\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: TAKE\n");
             break;
         case STATUS:
-            fprintf(stderr, " - Cmd: STATUS\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: STATUS\n");
             break;
         default:
-            fprintf(stderr, " - Cmd: ERROR\n");
+            log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - Cmd: ERROR\n");
             break;
     }
   //  log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - iParam1: %d / iParam2: %d / sParam1: %s\n", a->iParam1, a->iParam2, a->sParam1);
-    fprintf(stderr, " - iParam1: %d\n", a->iParam1);
-    fprintf(stderr, " - iParam2: %d\n", a->iParam2);
-    fprintf(stderr, " - sParam1: %s\n", a->sParam1);
+    log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - iParam1: %d\n", a->iParam1);
+    log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - iParam2: %d\n", a->iParam2);
+    log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, " - sParam1: %s\n", a->sParam1);
 }
 
 void encode(struct action* a, char* returnMessage) {
@@ -192,6 +192,6 @@ void encode(struct action* a, char* returnMessage) {
     }
 
     //printf("\n");
-    fprintf(stderr, "ENCODE:\n");
-    fprintf(stderr, "- String: %s\n", returnMessage);
+    log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, "ENCODE:\n");
+    log_printf(SLC_DEBUG|SLC_SOCKETCOMMUNICATION, "- String: %s\n", returnMessage);
 }

@@ -50,8 +50,8 @@ void cleanUpClient(int sockfd) {
 
 _Bool doSIZE(int playfieldN){
     int x;
-    fprintf(stderr, "Size received\n");
-    fprintf(stdout, "Playfield size: %d\n", playfieldN);
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Size received\n");
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Playfield size: %d\n", playfieldN);
 
     // 4 as this is the minimum size
     if (playfieldN < 4){
@@ -70,7 +70,7 @@ _Bool doSIZE(int playfieldN){
 }
 
 _Bool doSTART(struct action* returnAction){
-    fprintf(stdout, "Start received\n");
+    log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Start received\n");
 
     if (returnAction == NULL) {
         return FALSE;
@@ -145,13 +145,13 @@ _Bool updatePlayfield(struct action* currentAction, struct action* returnAction)
 
     if (clientStrategy ==2){
         int counter = lastTriedFieldY*n+lastTriedFieldX;
-        //fprintf(stderr, "DEBUG last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLC_DEBUG | SLC_SOCKETCOMMUNICATION, "last y: %d, last x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
         counter++;
         if (counter > n*n-1)
             counter = 0;
         nextTriedFieldY = counter/n;
         nextTriedFieldX = counter%n;
-        //fprintf(stderr, "DEBUG next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
+        log_printf(SLC_DEBUG | SLC_SOCKETCOMMUNICATION, "next y: %d, next x: %d, counter: %d, n: %d\n", lastTriedFieldY, lastTriedFieldX, counter, n);
 
     }
 
@@ -207,15 +207,15 @@ int main(int argc, char *argv[])
 
     srand(time(NULL));
 
-//            char childLogTag[256];
-//            sprintf(childLogTag, "CHILD:%d", getpid());
-//            startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
+    char childLogTag[256];
+    sprintf(childLogTag, "CHILD:%d", getpid());
+    startup_logger(childLogTag, SLO_CONSOLE | SLO_FILE, SLL_INFO |SLL_ERROR , SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
 
     int strategyInput;
 
     if(argc==3) {
         //define client player name
-        fprintf(stdout, "Please define Player Name: \n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "Please define Player Name: \n");
         //clean buffer
         bzero(buffer, 256);
         //gets string from stream stdin, terminated with newline \n
@@ -227,12 +227,12 @@ int main(int argc, char *argv[])
         else {
             strncpy(CLIENTNAME, buffer, strlen(buffer));
         }
-        fprintf(stdout, "Please select the strategy ID: \n");
-        fprintf(stdout, "1: simple from 0/0 to n/n \n");
-        fprintf(stdout, "2: simple quick\n");
-        fprintf(stdout, "3: random\n");
-        fprintf(stdout, "4: only STATUS check\n");
-        fprintf(stdout, "5: inactive client\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "Please select the strategy ID: \n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "1: simple from 0/0 to n/n \n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "2: simple quick\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "3: random\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "4: only STATUS check\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "5: inactive client\n");
         //clean buffer
         bzero(buffer, 256);
         //gets string from stream stdin, terminated with newline \n
@@ -270,11 +270,11 @@ int main(int argc, char *argv[])
     // SOCK_STREAM for TCP, Domain for Internet, protocol chosen automatically
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
-        fprintf(stderr,"ERROR opening socket\n");
+        error("ERROR opening socket\n");
     //define servername from start parameter by host database lookup
     server = gethostbyname(argv[1]);
     if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
+        error("ERROR, no such host\n");
         exit(0);
     }
     //set bites to zero
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
           server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
-        fprintf(stderr,"ERROR connecting\n");
+        error("ERROR connecting\n");
     log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "%10s: Connected to server\n", CLIENTNAME);
 
 
@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
     //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
     length = write(sockfd, buffer, strlen(buffer));
     if (length < 0)
-        fprintf(stderr,"ERROR writing to socket\n");
+        error("ERROR writing to socket\n");
     gameon = 1;
     while(gameon >= 1) {
 //        printf("Please enter the message: \n");
@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
             //print buffer, terminated by newline \n
 
             decode(buffer, &currentAction);
-            fprintf(stderr, "Client Buffer decoded: %s\n", buffer);
+            log_printf(SLL_INFO | SLC_SOCKETCOMMUNICATION, "Client Buffer decoded: %s\n", buffer);
 
             //possible receiving commands
             switch (currentAction.cmd) {
@@ -336,11 +336,11 @@ int main(int argc, char *argv[])
 
                     break;
                 case END:
-                    fprintf(stdout, "Winner was: %s, game has ended\n", currentAction.sParam1);
+                    log_printf(SLL_INFO | SLC_GAMEPLAY, "Winner was: %s, game has ended\n", currentAction.sParam1);
                     cleanUpClient(sockfd);
                     continue;
                 default:
-                    fprintf(stdout, "Assuming player name was received ...: %s\n", currentAction.sParam1);;
+                    log_printf(SLL_INFO | SLC_GAMEPLAY, "Assuming player name was received ...: %s\n", currentAction.sParam1);;
                     updatePlayfield(&currentAction, &returnAction);
                     break;
 
@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
             //writes lenght of buffer from buffer to sockfd, length = numbers of written or -1 for error
             length = write(sockfd, returnMessage, strlen(returnMessage));
             if (length < 0)
-                fprintf(stderr,"ERROR writing to socket\n");
+                error("ERROR writing to socket\n");
 
             //printf("Gameon: %d\n", gameon);
         }
