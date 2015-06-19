@@ -83,19 +83,19 @@ enum processType currentProcessType;
 
 void  intHandler(int sig)
 {
-    printf("\n");
-    printf("=== Ctrl-C was hit ... cleaning up ===\n");
-    printf("\n");
+    log_printf(SLL_INFO,"\n");
+    log_printf(SLL_INFO,"=== Ctrl-C was hit ... cleaning up ===\n");
+    log_printf(SLL_INFO,"\n");
     keepRunning = 0;
 }
 
 
 
-void error(int mask_flag, const char *msg)
-{
-    log_printf(mask_flag,msg);
-    keepRunning = 0;
-}
+//void error(int mask_flag, const char *msg)
+//{
+//    log_printf(mask_flag,msg);
+//    keepRunning = 0;
+//}
 
 void printPlayers(struct sharedVariables *shmStatusVariables){
     int i;
@@ -198,6 +198,7 @@ void cleanUpSocketHandler(int socket) {
 
     // Close socket
     close(socket);
+    close(socket+1); // for listening port of possible other connections
 
     // Cleanup shared memeory
     shmdt(shmPlayerList);
@@ -434,6 +435,7 @@ int main(int argc, char *argv[]) {
 
     sigaction(SIGINT, &sigIntHandler, NULL);
     //convert input variables
+    // error output directly to stderr as no log yet available (logging level only received during startupparameter check)
     portno = atoi(argv[1]);
     if(atoi(argv[2]) >=4) {
         FIELDSIZE = atoi(argv[2]);
@@ -442,7 +444,16 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,"Usage: Fieldsize must be equal or bigger than 4\n");
         keepRunning=0;
     }
-    CHECKFREQUENCY = atoi(argv[3]);
+
+
+    if((atoi(argv[3]) >= 1) && (atoi(argv[3]) <= 30)) {
+        CHECKFREQUENCY = atoi(argv[3]);
+    }
+    else {
+        fprintf(stderr,"Usage: check interval must be 1 <= y <= 30\n");
+        keepRunning=0;
+    }
+
     if(argc == 5){
         if((strcmp(argv[4],"RELEASE")==0) ||(strcmp(argv[4],"DEBUG")==0)){
             strncpy(loglevel, argv[4], 10);
@@ -455,6 +466,10 @@ int main(int argc, char *argv[]) {
         strncpy(loglevel,"RELEASE",10);
     }
 
+    if ((argc != 4) && (argc != 5)) {
+        fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize> <checkfrequency> [RELEASE | DEBUG]\n");
+        keepRunning=0;
+    }
 
     sprintf(gameplayLogTag, "GAMEPLAY:%d", getpid());
     //startup_logger(gameplayLogTag, SLO_CONSOLE | SLO_FILE, SLC_GAMEPLAY, SLL_ALL_LEVELS | SLC_ALL_CATEGORIES);
@@ -469,10 +484,6 @@ int main(int argc, char *argv[]) {
 
     pid_t parentProcess = getpid();
 
-    if ((argc != 4) && (argc != 5)) {
-        fprintf(stderr,"Usage: grabFirstServer <portnumber> <fieldSize> <checkfrequency> [RELEASE | DEBUG]\n");
-        keepRunning=0;
-    }
 
 
     // Open shared nemory semaphores
@@ -730,6 +741,7 @@ int main(int argc, char *argv[]) {
             }
             else{
                 sem_post(semStatusVariables);
+                log_printf(SLL_DEBUG | SLC_PROCESSDISPATCHING, "No input received in sockethandler, keepRunning was set to 0\n");
                 keepRunning = 0;
 
             }
@@ -812,12 +824,14 @@ int main(int argc, char *argv[]) {
                     }
                 }
                 else {
-                    close(newsockfd+1);
+                    log_printf(SLL_DEBUG | SLC_CHILDINTERACTION, "No input received in childinderaction (waitet for 5sec)\n");
+                    //close(newsockfd+1);
                 }
             }
             else{
                 int winner = shmStatusVariables->sv_winnerID;
                 sem_post(semStatusVariables);
+                log_printf(SLL_DEBUG | SLC_CHILDINTERACTION, "gameLevel >=3 was reached, winnerID is %d\n", winner);
 
                 returnAction.cmd = END;
                 sem_wait(semPlayerList);
@@ -894,9 +908,11 @@ int main(int argc, char *argv[]) {
 
     if (currentProcessType == gameplay) {
         sem_wait(semStatusVariables);
+        log_printf(SLL_DEBUG | SLC_GAMEPLAY,"sv_gameLevel is %d\n", shmStatusVariables->sv_gameLevel);
         if(shmStatusVariables->sv_gameLevel !=3) {
             // tell all forks to exit loop
             shmStatusVariables->sv_gameLevel = 0;
+            log_printf(SLL_DEBUG | SLC_GAMEPLAY,"Set sv_gameLevel = 0\n");
         }
         sem_post(semStatusVariables);
 
@@ -913,16 +929,20 @@ int main(int argc, char *argv[]) {
 
     if (currentProcessType == sockethandler) {
         sem_wait(semStatusVariables);
+        log_printf(SLL_DEBUG | SLC_SOCKETHANDLER,"sv_gameLevel is %d\n", shmStatusVariables->sv_gameLevel);
         if(shmStatusVariables->sv_gameLevel !=3) {
             shmStatusVariables->sv_gameLevel = 0;
+            log_printf(SLL_DEBUG | SLC_SOCKETHANDLER,"Set sv_gameLevel = 0\n");
 
         }
         sem_post(semStatusVariables);
         cleanUpSocketHandler(sockfd);
     }
     if (currentProcessType == childinteraction) {
-        /*sem_wait(semStatusVariables);
-        if(shmStatusVariables->sv_gameLevel == 0) {
+        log_printf(SLL_DEBUG | SLC_CHILDINTERACTION, "Last parameters before cleanup: sv_gameLevel: %d / keepRunning: %d / newsockfd: %d\n", shmStatusVariables->sv_gameLevel, keepRunning, newsockfd);
+        sem_wait(semStatusVariables);
+        log_printf(SLL_DEBUG | SLC_SOCKETHANDLER,"sv_gameLevel is %d\n", shmStatusVariables->sv_gameLevel);
+        if(shmStatusVariables->sv_gameLevel !=3) {
             sem_post(semStatusVariables);
             returnAction.cmd = END;
             strcpy(returnAction.sParam1, "ABORT");
@@ -932,10 +952,12 @@ int main(int argc, char *argv[]) {
 
             //write response to socket
             length = write(newsockfd, replyMessage, 18);
-            if (length < 0) error(SLL_ERROR | SLC_CHILDINTERACTION, "ERROR writing to socket");
+            if (length < 0) log_printf(SLL_ERROR | SLC_CHILDINTERACTION, "ERROR writing to socket");
+
         }
-        else
-            sem_post(semStatusVariables);*/
+        else {
+            sem_post(semStatusVariables);
+        }
 
         cleanUpChildInteraction(shmStatusVariables, newsockfd);
     }
