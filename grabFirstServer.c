@@ -113,7 +113,7 @@ void printPlayers(struct sharedVariables *shmStatusVariables){
 
     sem_post(semStatusVariables);
     sem_post(semPlayerList);
-    
+
 }
 
 int checkPlayfield(){
@@ -317,6 +317,7 @@ _Bool doHELLO(struct sharedVariables *shmStatusVariables, struct action* returnA
 
     sem_wait(semStatusVariables);
     if (shmStatusVariables->sv_numberOfPlayers < MAX_CLIENTS) {
+        shmStatusVariables->sv_numberOfPlayers++;
         successfulSignup = 1;
     }
     else {
@@ -330,6 +331,7 @@ _Bool doHELLO(struct sharedVariables *shmStatusVariables, struct action* returnA
     }
     else {
 	returnAction->cmd = NACK;
+        log_printf(SLL_DEBUG|SLC_SOCKETCOMMUNICATION, "Client was not successfully signed up\n");
     }
 
     return TRUE;
@@ -620,7 +622,7 @@ int main(int argc, char *argv[]) {
             log_printf(SLL_ERROR | SLC_GENERALERRORS, "ERROR on binding socket to port\n");
             keepRunning=0;
         }
-        listen(sockfd,5);
+        listen(sockfd,MAX_CLIENTS);
         clilen = sizeof(cli_addr);
 
         // Get access to Player List in shared memory
@@ -734,8 +736,8 @@ int main(int argc, char *argv[]) {
                             //attach segment to data space
                             shmStatusVariables = (struct sharedVariables *) shmat(sharedMemIDStruct, NULL, 0);
                             sem_wait(semStatusVariables);
-                            shmStatusVariables->sv_numberOfPlayers++;
-                            log_printf(SLL_DEBUG | SLC_PROCESSDISPATCHING, "ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, shmStatusVariables->sv_numberOfPlayers);
+                            //shmStatusVariables->sv_numberOfPlayers++;
+                            log_printf(SLL_DEBUG | SLC_PROCESSDISPATCHING, "ChildinteractionPID:%d Mode : %d] New number of sockets: %d\n", currentChildPID, currentProcessType, shmStatusVariables->sv_numberOfPlayers+1);
                             sem_post(semStatusVariables);
                             currentProcessType = childinteraction;
 
