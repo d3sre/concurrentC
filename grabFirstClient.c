@@ -228,8 +228,8 @@ int main(int argc, char *argv[])
             strncpy(CLIENTNAME, buffer, strlen(buffer));
         }
         log_printf(SLL_INFO | SLC_GAMEPLAY, "Please select the strategy ID: \n");
-        log_printf(SLL_INFO | SLC_GAMEPLAY, "1: simple from 0/0 to n/n \n");
-        log_printf(SLL_INFO | SLC_GAMEPLAY, "2: simple quick\n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "1: simple from 0/0 to n/n - loop \n");
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "2: simple quick - loop\n");
         log_printf(SLL_INFO | SLC_GAMEPLAY, "3: random\n");
         log_printf(SLL_INFO | SLC_GAMEPLAY, "4: only STATUS check\n");
         log_printf(SLL_INFO | SLC_GAMEPLAY, "5: inactive client\n");

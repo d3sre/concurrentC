@@ -31,7 +31,6 @@
 #define TRUE 1
 #define FALSE 0
 
-int gameon = 0;
 char replyMessage[256];
 
 // Global defaults
@@ -383,7 +382,6 @@ _Bool doSTATUS(int x, int y, struct action* returnAction) {
 //    sem_post(semStatusVariables);
 //    log_printf(SLC_DEBUG|SLC_DEBUG_SEM_STATUS, "Status variables UNLOCKED\n");
 //    log_printf(SLC_DEBUG, "STATUS A10\n");
-//    gameon = 0;
 //    returnAction->cmd = END;
 //    strcpy(returnAction->sParam1, playerName);
 //
@@ -401,7 +399,6 @@ _Bool doSTART(struct sharedVariables *shmStatusVariables, struct action* returnA
             //start the game
             log_printf(SLL_INFO|SLC_GAMEPLAY, "Game level was raised\n");
 
-            gameon = 2;
             log_printf(SLL_INFO|SLC_SOCKETCOMMUNICATION|SLC_RELEASE, "START all\n");
 
             returnAction->cmd = START;
@@ -565,7 +562,6 @@ int main(int argc, char *argv[]) {
 
 
     //raise game level
-    gameon=1;
     shmStatusVariables->sv_gameLevel=1;
     pid_t childpid, masterpid;
     _Bool isChild = FALSE;
