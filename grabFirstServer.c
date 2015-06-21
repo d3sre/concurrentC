@@ -103,15 +103,17 @@ void printPlayers(struct sharedVariables *shmStatusVariables){
     sem_wait(semStatusVariables);
 
 
-    log_printf(SLL_INFO|SLC_GAMEPLAY, "PlayerList: Number of players: %d / player names: %d\n", shmStatusVariables->sv_numberOfPlayers,shmStatusVariables->sv_numberOfPlayerNames);
-    log_printf(SLL_INFO|SLC_GAMEPLAY, "PlayerList:\n");
+    log_printf(SLL_INFO | SLC_GAMEPLAY, "PlayerList: Number of players: %d / player names: %d\n",
+               shmStatusVariables->sv_numberOfPlayers, shmStatusVariables->sv_numberOfPlayerNames);
+    log_printf(SLL_INFO | SLC_GAMEPLAY, "PlayerList:\n");
 
     for (i = 0; i < shmStatusVariables->sv_numberOfPlayerNames; i++) {
-        log_printf(SLL_INFO|SLC_GAMEPLAY, "- ID: %d, Name: %s\n", i, &shmPlayerList[i*MAX_PLAYER_NAME_LENGTH]);
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "- ID: %d, Name: %s\n", i, &shmPlayerList[i * MAX_PLAYER_NAME_LENGTH]);
     }
 
     sem_post(semStatusVariables);
     sem_post(semPlayerList);
+    
 }
 
 int checkPlayfield(){
@@ -306,14 +308,21 @@ int getPlayerID(struct sharedVariables *shmStatusVariables, const char* playerna
 }
 
 
-_Bool doHELLO(struct action* returnAction) {
+_Bool doHELLO(struct sharedVariables *shmStatusVariables, struct action* returnAction) {
     log_printf(SLL_DEBUG|SLC_SOCKETCOMMUNICATION, "HELLO received - playfield size defined is: %d\n", FIELDSIZE);
 
+    int successfulSignup = 0;
     if (returnAction == NULL)
         return FALSE;
 
-    //TODO check ready parameters
-    int successfulSignup = 1;
+    sem_wait(semStatusVariables);
+    if (shmStatusVariables->sv_numberOfPlayers < MAX_CLIENTS) {
+        successfulSignup = 1;
+    }
+    else {
+        successfulSignup = 0;
+    }
+    sem_post(semStatusVariables);
  
     if(successfulSignup){
         returnAction->cmd = SIZE;
@@ -785,7 +794,7 @@ int main(int argc, char *argv[]) {
                         //possible receiving commands
                         switch (currentAction.cmd) {
                             case HELLO:
-                                doHELLO(&returnAction);
+                                doHELLO(shmStatusVariables, &returnAction);
                                 // Manually trigger sending the necessary SIZE command
 
                                 // change struct to string
