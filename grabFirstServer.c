@@ -115,7 +115,9 @@ void printPlayers(struct sharedVariables *shmStatusVariables){
 }
 
 int checkPlayfield(){
-    log_printf(SLL_INFO|SLC_GAMEPLAY, "Playfield:\n");
+    if (FIELDSIZE < 15) { //to avoid slowing down because of unnecessary printing
+        log_printf(SLL_INFO | SLC_GAMEPLAY, "Playfield:\n");
+    }
     int x;
     int y;
     int winner;
@@ -129,22 +131,28 @@ int checkPlayfield(){
     winner = shmPlayfield[0];
 
     for(y=0; y<FIELDSIZE;y++){
-        log_printf(SLL_INFO|SLC_GAMEPLAY|SLC_RELEASE,"");
+        if (FIELDSIZE < 15) { //to avoid slowing down because of unnecessary printing
+            log_printf(SLL_INFO | SLC_GAMEPLAY, "");
+        }
         for(x=0; x< FIELDSIZE; x++) {
             index = FIELDSIZE*y+x;
 
             if(shmPlayfield[index] != winner){
                 winner = -1;
             }
+            if (FIELDSIZE < 15){        //to avoid slowing down because of unnecessary printing
             if(shmPlayfield[index] == -1) {
                 log_appendprintf(SLL_INFO|SLC_GAMEPLAY,"-");
             }
             else {
                 log_appendprintf(SLL_INFO|SLC_GAMEPLAY,"%d",shmPlayfield[index]);
             }
+            }
 
         }
-        log_appendprintf(SLL_INFO|SLC_GAMEPLAY,"\n");
+        if (FIELDSIZE < 15) {        //to avoid slowing down because of unnecessary printing
+            log_appendprintf(SLL_INFO | SLC_GAMEPLAY, "\n");
+        }
     }
     //unlock all playfield element semaphores
     for (i = 0; i < FIELDSIZE*FIELDSIZE; i++) {
@@ -390,7 +398,7 @@ _Bool doSTATUS(int x, int y, struct action* returnAction) {
 
 _Bool doSTART(struct sharedVariables *shmStatusVariables, struct action* returnAction) {
     //create segment & set permissions
-    while(TRUE) {
+    while(shmStatusVariables->sv_gameLevel !=0) {
         sem_wait(semStatusVariables);
         if (shmStatusVariables->sv_gameLevel != 2) {
             log_printf(SLL_DEBUG| SLC_CHILDINTERACTION, "Game is not yet started\n");
