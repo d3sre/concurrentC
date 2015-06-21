@@ -15,7 +15,7 @@ Wobei
     ./client <ipaddr> <serverport> [clientname] [gamestrategy]
 ./client 127.0.0.1 54431 beta 2
 
-Wobei Gamestrategie:
+Wobei Gamestrategie:  
 1: simple from 0/0 to n/n - loop  
 2: simple quick - loop  
 3: random  
