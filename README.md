@@ -11,3 +11,9 @@ Erzeugung der Files über make
     ./client <ipaddr> <serverport> [clientname] [gamestrategy]
 ./client 127.0.0.1 54431 beta 2
 
+
+## Testing hints
+max tested clients were 262
+for i in $(seq 1 260); do (./client 127.0.0.1 54431 $i 5&); done
+./client 127.0.0.1 54431 alice 2
+./client 127.0.0.1 54431 bob 3
