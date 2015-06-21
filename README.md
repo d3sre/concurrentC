@@ -7,9 +7,9 @@ Erzeugung der Files über make
     ./server <port> <n> <y> [RELEASE|DEBUG]
 ./server 54431 5 5 RELEASE
 
-Wobei   
-	n = Spielfeldgrösse   -> 4 <= n <= 256  
-      	y = Prüfungsinterval  -> 1 <= y <= 30  
+Wobei  
+    n = Spielfeldgrösse   -> 4 <= n <= 256  
+    y = Prüfungsinterval  -> 1 <= y <= 30  
 
 ## Start des Clients (Bsp)
     ./client <ipaddr> <serverport> [clientname] [gamestrategy]
